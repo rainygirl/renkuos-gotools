@@ -38,8 +38,14 @@ Each package installs one command into `/boot/system/bin`: `rclone`,
 Without the repository, with a `.hpkg` built by `package.sh`:
 
 ```sh
-pkgman install ./rclone-1.76.0-1-arm64.hpkg
+pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
+
+Package revisions: on arm64, `rclone`, `syncthing` and `github_cli` are
+revision 2 and the others revision 1; on 32-bit x86, `rclone_x86`,
+`syncthing_x86` and `github_cli_x86` are revision 2 and the others
+revision 1; on x86_64 all are revision 1. The arm64 packages are built
+with the Go toolchain of golang_bin revision 10, which delivers signals.
 
 ## rclone
 
@@ -113,9 +119,10 @@ caddy stop
 
 The standard modules (file server, reverse proxy, automatic HTTPS, the
 Caddyfile). The admin endpoint listens on `127.0.0.1:2019` instead of
-`localhost:2019`: Go programs on Haiku cannot look up `localhost` yet, as
-there is no `/etc/hosts`. For the same reason, write `127.0.0.1` rather than
-`localhost` for upstreams, as in `reverse_proxy 127.0.0.1:3000`.
+`localhost:2019`. On x86_64 and 32-bit x86 Go programs still cannot look
+up `localhost`, as Haiku has no `/etc/hosts`; write `127.0.0.1` rather
+than `localhost` there, as in `reverse_proxy 127.0.0.1:3000`. The arm64
+build reads Haiku's hosts file, so `localhost` works there.
 
 ## fzf
 
@@ -135,15 +142,12 @@ lazygit needs `git` 2.32 or later. On x86_64 and 32-bit x86 Haiku has it
 (`pkgman install git`, or `git_x86` on 32-bit x86); the RenkuOS arm64
 repository has no git yet, so there lazygit only starts far enough to say so.
 
-## On arm64: stopping a running command
+## Stopping a running command
 
-On RenkuOS arm64 a Go program does not react to Ctrl-C or to `kill` yet (the
-Go runtime there does not deliver signals), so `syncthing`,
-`rclone serve`, `hugo server` or `caddy file-server` keep running. Shut
-Syncthing down from its web page (Actions -> Shutdown) and Caddy with
-`caddy stop`; stop anything else with `kill -9 <team id>` or from
-ProcessController. Interactive programs (fzf, lazygit) quit normally with
-their own keys (Esc, `q`). x86_64 and 32-bit x86 are not affected.
+Ctrl-C and `kill` stop `syncthing`, `rclone serve`, `hugo server`,
+`caddy file-server` and the rest on all three systems. On arm64 this needs
+the packages built with the fixed toolchain (see the revisions above):
+older arm64 builds ignored both, and only `kill -9` stopped them.
 
 ## Uninstall
 

@@ -38,8 +38,14 @@ RenkuOS(Haiku)의 arm64, x86_64, 32비트 x86용으로 빌드한 것입니다. �
 저장소 없이 `package.sh`로 만든 `.hpkg`를 쓰는 경우:
 
 ```sh
-pkgman install ./rclone-1.76.0-1-arm64.hpkg
+pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
+
+패키지 리비전: arm64에서는 `rclone`, `syncthing`, `github_cli`가 리비전
+2이고 나머지는 리비전 1입니다. 32비트 x86에서는 `rclone_x86`,
+`syncthing_x86`, `github_cli_x86`가 리비전 2이고 나머지는 리비전 1이며,
+x86_64는 모두 리비전 1입니다. arm64 패키지는 시그널을 전달하는
+golang_bin 리비전 10의 Go 툴체인으로 빌드했습니다.
 
 ## rclone
 
@@ -113,9 +119,10 @@ caddy stop
 
 표준 모듈(파일 서버, 리버스 프록시, 자동 HTTPS, Caddyfile)이 들어 있습니다.
 관리 엔드포인트는 `localhost:2019` 대신 `127.0.0.1:2019`에서 대기합니다.
-Haiku에는 `/etc/hosts`가 없어서 Go 프로그램이 아직 `localhost`를 찾지 못하기
-때문입니다. 같은 이유로 업스트림은 `reverse_proxy 127.0.0.1:3000`처럼
-`localhost` 대신 `127.0.0.1`로 쓰세요.
+x86_64와 32비트 x86에서는 Haiku에 `/etc/hosts`가 없어서 Go 프로그램이 아직
+`localhost`를 찾지 못합니다. 그쪽에서는 `reverse_proxy 127.0.0.1:3000`처럼
+`localhost` 대신 `127.0.0.1`로 쓰세요. arm64 빌드는 Haiku의 hosts 파일을
+읽으므로 `localhost`가 동작합니다.
 
 ## fzf
 
@@ -135,14 +142,12 @@ lazygit에는 `git` 2.32 이상이 필요합니다. x86_64와 32비트 x86의 Ha
 있습니다(`pkgman install git`, 32비트 x86에서는 `git_x86`). RenkuOS arm64
 저장소에는 아직 git이 없어서, 그곳에서 lazygit은 그 사실을 알리고 끝납니다.
 
-## arm64에서 실행 중인 명령 멈추기
+## 실행 중인 명령 멈추기
 
-RenkuOS arm64에서는 Go 프로그램이 아직 Ctrl-C나 `kill`에 반응하지 않습니다
-(그쪽 Go 런타임이 시그널을 전달하지 않습니다). 그래서 `syncthing`,
-`rclone serve`, `hugo server`, `caddy file-server`는 계속 실행됩니다.
-Syncthing은 웹 페이지(Actions -> Shutdown)에서, Caddy는 `caddy stop`으로
-종료하고, 나머지는 `kill -9 <team id>`나 ProcessController로 멈추세요.
-대화식 프로그램(fzf, lazygit)은 자체 키(Esc, `q`)로 정상 종료됩니다. x86_64와 32비트 x86에는 해당하지 않습니다.
+세 시스템 모두에서 Ctrl-C와 `kill`로 `syncthing`, `rclone serve`,
+`hugo server`, `caddy file-server` 등을 멈출 수 있습니다. arm64에서는 고친
+툴체인으로 빌드한 패키지(위의 리비전 참고)여야 합니다. 이전 arm64 빌드는
+둘 다 무시했고 `kill -9`로만 멈췄습니다.
 
 ## 제거
 

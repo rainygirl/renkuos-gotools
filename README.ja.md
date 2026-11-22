@@ -39,8 +39,14 @@ RenkuOS(Haiku)の arm64、x86_64、32 ビット x86 向けにビルドしたも�
 リポジトリを使わず、`package.sh` で作った `.hpkg` を使う場合:
 
 ```sh
-pkgman install ./rclone-1.76.0-1-arm64.hpkg
+pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
+
+パッケージのリビジョン: arm64 では `rclone`、`syncthing`、`github_cli` が
+リビジョン 2、ほかはリビジョン 1 です。32 ビット x86 では `rclone_x86`、
+`syncthing_x86`、`github_cli_x86` がリビジョン 2、ほかはリビジョン 1、
+x86_64 はすべてリビジョン 1 です。arm64 のパッケージは、シグナルを配送する
+golang_bin リビジョン 10 の Go ツールチェーンでビルドしています。
 
 ## rclone
 
@@ -115,10 +121,11 @@ caddy stop
 
 標準モジュール(ファイルサーバー、リバースプロキシ、自動 HTTPS、Caddyfile)
 入りです。管理エンドポイントは `localhost:2019` ではなく `127.0.0.1:2019` で
-待ち受けます。Haiku には `/etc/hosts` がないため、Go のプログラムはまだ
-`localhost` を引けません。同じ理由で、アップストリームは
+待ち受けます。x86_64 と 32 ビット x86 では Haiku に `/etc/hosts` がないため、
+Go のプログラムはまだ `localhost` を引けません。そちらでは
 `reverse_proxy 127.0.0.1:3000` のように `localhost` ではなく `127.0.0.1` で
-書いてください。
+書いてください。arm64 のビルドは Haiku の hosts ファイルを読むので、
+`localhost` が使えます。
 
 ## fzf
 
@@ -139,14 +146,12 @@ lazygit には `git` 2.32 以降が必要です。x86_64 と 32 ビット x86 �
 のリポジトリにはまだ git がないため、そこでは lazygit はそのことを表示して
 終了します。
 
-## arm64 で実行中のコマンドを止めるには
+## 実行中のコマンドを止めるには
 
-RenkuOS arm64 では、Go のプログラムはまだ Ctrl-C や `kill` に反応しません
-(Go ランタイムがシグナルを配送しないため)。そのため `syncthing`、
-`rclone serve`、`hugo server`、`caddy file-server` は動き続けます。Syncthing
-はウェブページ(Actions -> Shutdown)から、Caddy は `caddy stop` で終了し、
-それ以外は `kill -9 <team id>` か ProcessController で止めてください。
-対話型のプログラム(fzf、lazygit)は自身のキー(Esc、`q`)で普通に終了します。x86_64 と 32 ビット x86 には影響しません。
+3 つのシステムすべてで、Ctrl-C と `kill` で `syncthing`、`rclone serve`、
+`hugo server`、`caddy file-server` などを止められます。arm64 では、修正した
+ツールチェーンでビルドしたパッケージ(上のリビジョンを参照)が必要です。
+以前の arm64 ビルドはどちらも無視し、`kill -9` でしか止まりませんでした。
 
 ## アンインストール
 

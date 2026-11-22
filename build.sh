@@ -13,16 +13,17 @@
 # Runs on any machine that has a Go toolchain able to target Haiku on that
 # architecture. Name it with GO, or per architecture:
 #
-#   GO_ARM64      github.com/rainygirl/renkuos-golang, with
-#                 patches/go/go-haiku-arm64-startup.patch applied
+#   GO_ARM64      github.com/rainygirl/renkuos-golang, golang_bin revision
+#                 10 or later (signal and startup fixes); an older tree
+#                 needs patches/go/go-haiku-arm64-startup.patch
 #   GO_X86_64     github.com/korli/go, branch golang-1.27-haiku
 #   GO_X86_GCC2   github.com/rainygirl/renkuos-golang-x86, revision 2 or
 #                 later: the cross toolchain its build.sh leaves in
 #                 .work/go/bin/go, with the whole haiku/386 patch series
 #
-# docs/PORTING.md says why. Without the arm64 patch the binaries print
-# "234567" at every start; an older 32-bit toolchain crashes or misplaces
-# file offsets.
+# docs/PORTING.md says why. With an older arm64 tree the binaries print
+# "234567" at every start and ignore SIGTERM and Ctrl-C; an older 32-bit
+# toolchain crashes or misplaces file offsets.
 #
 # Environment:
 #   WORK     scratch directory (default: ./.work)
@@ -49,6 +50,9 @@ deps=$work/deps
 out=$here/dist/$arch
 
 command -v "$go" >/dev/null 2>&1 || die "no Go toolchain: set GO=/path/to/go"
+# Before the first "$go" command, so the checks below cannot download
+# another toolchain on behalf of a go.mod or GOTOOLCHAIN in the environment.
+export GOTOOLCHAIN=local
 "$go" tool dist list 2>/dev/null | grep -qx "haiku/$goarch" \
 	|| die "$("$go" version) cannot target haiku/$goarch; see the header of this script"
 # patches/deps/sys.patch's 386 mmap relies on the zero-padded argument window
@@ -60,7 +64,6 @@ command -v "$go" >/dev/null 2>&1 || die "no Go toolchain: set GO=/path/to/go"
 . "$here/tools/$tool.conf"
 
 mkdir -p "$work" "$out" "$deps"
-export GOTOOLCHAIN=local
 export GOFLAGS=-mod=mod
 export GOPATH=${GOPATH:-$work/gopath}
 export GOCACHE=${GOCACHE:-$work/gocache-$arch}

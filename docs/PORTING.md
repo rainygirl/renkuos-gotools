@@ -24,19 +24,28 @@ needs nothing else.
 
 | Architecture | Toolchain | Patch from `patches/go/` |
 | --- | --- | --- |
-| arm64 | [renkuos-golang](https://github.com/rainygirl/renkuos-golang), Go 1.27.4 | `go-haiku-arm64-startup.patch` |
+| arm64 | [renkuos-golang](https://github.com/rainygirl/renkuos-golang) golang_bin revision 10, Go 1.27.4 | none (older trees: `go-haiku-arm64-startup.patch`) |
 | x86_64 | [korli/go](https://github.com/korli/go) `golang-1.27-haiku`, Go 1.27.4 | none |
 | 32-bit x86 | [renkuos-golang-x86](https://github.com/rainygirl/renkuos-golang-x86) revision 2, Go 1.26.5 | none (the fixes are in its `patches/`) |
 
-The arm64 patch only touches the standard library, so the toolchain does not
-have to be rebuilt: apply it to its tree (or to a copy) and the next
-`go build` compiles the changed packages.
+### arm64: renkuos-golang revision 10
 
-### arm64: `go-haiku-arm64-startup.patch`
+The tree of golang_bin revision 10 has three fixes the tools need:
 
-`runtime/asm_arm64.s` in that tree still has six debugging writes in the
-startup path. Every program built with it prints `234567` on stderr before
-`main` runs. The patch removes them.
+- **Signals.** Older arm64 trees never delivered a signal to Go code: every
+  Go program ignored SIGTERM, SIGINT and SIGHUP (only `kill -9` stopped
+  it) and `os/signal.Notify` never fired. The arm64 packages built with
+  revision 10 stop on `kill` and Ctrl-C like on the other systems.
+- **`localhost`.** Its `net` package reads Haiku's hosts file,
+  `/boot/system/settings/network/hosts`, so `localhost` resolves (see
+  "Found while checking these" below).
+- **Startup output.** `runtime/asm_arm64.s` in older trees still has six
+  debugging writes in the startup path, and every program built with it
+  prints `234567` on stderr before `main` runs.
+  `patches/go/go-haiku-arm64-startup.patch` removes them from such a tree;
+  it only touches the standard library, so apply it to the tree (or a
+  copy) and the next `go build` compiles the changed packages. Revision 10
+  does not need it.
 
 ### 32-bit x86: renkuos-golang-x86
 
@@ -278,9 +287,10 @@ not in Terminal.
 | fzf | `--version`; `--filter`; interactive in a pseudo-terminal over ssh: typed query narrows the list, Enter prints the choice | pass | pass | pass |
 | lazygit | `--version`; started in a git repository in a pseudo-terminal over ssh: panels and the diff are drawn, a file staged and committed with `space`, `c`, a message and Enter (seen in `git log`), `q` quits | no git | pass | pass |
 
-On arm64, `hugo server` and `caddy file-server` ignore SIGTERM, as every Go
-program there does for now (below); `caddy stop` works. On x86_64 and 32-bit
-x86 both stop on SIGTERM.
+With the first arm64 builds `hugo server` and `caddy file-server` ignored
+SIGTERM, as every Go program built with the older arm64 toolchain did (see
+"arm64 rebuild" below); `caddy stop` worked. On x86_64 and 32-bit x86 both
+stop on SIGTERM.
 
 Found while checking these:
 
@@ -288,9 +298,12 @@ Found while checking these:
   Haiku keeps its hosts file in `/boot/system/settings/network/hosts`, so
   `localhost` is sent to the DNS server and is not found. Caddy works around
   it (see above); lazygit's `--profile` cannot listen on `localhost:6060`
-  for the same reason. A symlink
+  for the same reason. Fixed for arm64 in renkuos-golang revision 10
+  (`net/hook_haiku.go` points the resolver at Haiku's file); the x86_64
+  (korli/go) and 32-bit (renkuos-golang-x86) toolchains still need the
+  same one-line change. Until then a symlink
   `/etc/hosts -> /boot/system/settings/network/hosts` fixes it for every Go
-  program; the real fix belongs in the Go ports' `net` package.
+  program there.
 - **Haiku's TCP ignores `SO_REUSEPORT` on listening sockets** (it only looks
   at `SO_REUSEADDR`, and only for sockets in TIME_WAIT); see Caddy above.
 - **arm64: ramfs hung** under restic: `forget --prune` on a repository on a
@@ -299,16 +312,31 @@ Found while checking these:
   failed with "directory not empty" just before. The same steps pass on BFS.
   A ramfs problem, not restic's.
 
+- **arm64: Go programs ignored SIGINT and SIGTERM** (`kill` and Ctrl-C did
+  nothing, with or without `signal.Notify`; `kill -9` worked). x86_64 and
+  32-bit x86 deliver both. It was the arm64 runtime's signal path in
+  renkuos-golang, fixed in its revision 10; see "arm64 rebuild" below.
+
 Found and not fixed:
 
-- **arm64: Go programs ignore SIGINT and SIGTERM** (`kill` and Ctrl-C do
-  nothing, with or without `signal.Notify`; `kill -9` works). Measured with a
-  small program on all three: x86_64 and 32-bit x86 deliver both. A fault in
-  the arm64 runtime's signal path in renkuos-golang, outside this repository.
-  The READMEs say how to stop a program instead.
 - **arm64: an HTTPS listing hung twice** without rclone's `--contimeout` and
   `--timeout` set (it stayed inside the request for minutes). Eight runs in a
   row with `--contimeout 10s --timeout 15s` all finished. Cause not found.
+
+### arm64 rebuild
+
+All eight arm64 tools were rebuilt with the toolchain of renkuos-golang
+golang_bin revision 10 (signal, cgo TLS and `localhost` fixes): `rclone`,
+`syncthing` and `github_cli` as revision 2, the other five, not published
+before, still as revision 1. Checked on 2026-11-23 on the RenkuOS arm64
+live image (binaries run from a BFS disk): `version` of each (no `234567`
+on stderr); `hugo server` serves the home page and stops on SIGTERM;
+`caddy file-server` serves a file and stops on SIGTERM; `caddy run` with
+`admin localhost:2019` in its Caddyfile starts, answers on the admin
+address and stops on SIGINT; `rclone copy` + `check` of a 5 MB file and a
+subdirectory (same md5); `rclone serve http` answers and stops on
+SIGTERM; Syncthing's GUI answers and Syncthing stops on SIGTERM; `gh
+--version`. All pass.
 
 Not checked: Syncthing between two machines, or with a 2.x peer; rclone
 against a remote that needs credentials; `gh` after logging in; restic with a

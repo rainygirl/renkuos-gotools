@@ -38,8 +38,15 @@ Ogni pacchetto installa un comando in `/boot/system/bin`: `rclone`,
 Senza il repository, con un `.hpkg` prodotto da `package.sh`:
 
 ```sh
-pkgman install ./rclone-1.76.0-1-arm64.hpkg
+pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
+
+Revisioni dei pacchetti: su arm64 `rclone`, `syncthing` e `github_cli`
+sono alla revisione 2 e gli altri alla revisione 1; su x86 a 32 bit
+`rclone_x86`, `syncthing_x86` e `github_cli_x86` sono alla revisione 2 e
+gli altri alla 1; su x86_64 sono tutti alla revisione 1. I pacchetti arm64
+sono compilati con la toolchain Go di golang_bin revisione 10, che
+consegna i segnali.
 
 ## rclone
 
@@ -116,10 +123,11 @@ caddy stop
 
 I moduli standard (file server, reverse proxy, HTTPS automatico, Caddyfile).
 L'endpoint di amministrazione ascolta su `127.0.0.1:2019` invece di
-`localhost:2019`: su Haiku i programmi Go non sanno ancora risolvere
-`localhost`, perché non c'è `/etc/hosts`. Per lo stesso motivo scrivi
-`127.0.0.1` invece di `localhost` per gli upstream, come in
-`reverse_proxy 127.0.0.1:3000`.
+`localhost:2019`. Su x86_64 e x86 a 32 bit i programmi Go non sanno ancora
+risolvere `localhost`, perché Haiku non ha `/etc/hosts`: lì scrivi
+`127.0.0.1` invece di `localhost`, come in `reverse_proxy 127.0.0.1:3000`.
+La build arm64 legge il file hosts di Haiku, quindi lì `localhost`
+funziona.
 
 ## fzf
 
@@ -140,14 +148,13 @@ l'ha (`pkgman install git`, oppure `git_x86` su x86 a 32 bit); il repository
 RenkuOS arm64 non ha ancora git, quindi lì lazygit si avvia solo quanto basta
 per dirlo.
 
-## Su arm64: fermare un comando in esecuzione
+## Fermare un comando in esecuzione
 
-Su RenkuOS arm64 un programma Go non reagisce ancora a Ctrl-C né a `kill` (lì
-il runtime di Go non consegna i segnali), quindi `syncthing`, `rclone serve`,
-`hugo server` o `caddy file-server` restano in esecuzione. Arresta Syncthing
-dalla sua pagina web (Actions -> Shutdown) e Caddy con `caddy stop`; ferma
-tutto il resto con `kill -9 <team id>` o da ProcessController. I programmi
-interattivi (fzf, lazygit) si chiudono normalmente con i loro tasti (Esc, `q`). x86_64 e x86 a 32 bit non hanno questo problema.
+Ctrl-C e `kill` fermano `syncthing`, `rclone serve`, `hugo server`,
+`caddy file-server` e gli altri su tutti e tre i sistemi. Su arm64 servono
+i pacchetti compilati con la toolchain corretta (vedi le revisioni sopra):
+le build arm64 precedenti ignoravano entrambi e si fermavano solo con
+`kill -9`.
 
 ## Disinstallazione
 
