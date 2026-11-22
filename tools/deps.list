@@ -20,3 +20,9 @@ browser github.com/cli/browser v1.3.0
 xterm golang.org/x/term v0.48.0
 cterm github.com/charmbracelet/x/term v0.2.2
 isatty github.com/mattn/go-isatty v0.0.24
+readline github.com/chzyer/readline v1.5.1
+jibber github.com/cloudfoundry/jibber_jabber v0.0.0-20151120183258-bcc4c8345a21
+mclib github.com/bep/mclib v1.20401.20400
+wazero github.com/tetratelabs/wazero v1.12.0
+gointernal github.com/rogpeppe/go-internal v1.16.0
+pty github.com/creack/pty v1.1.24

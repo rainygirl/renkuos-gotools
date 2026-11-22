@@ -20,7 +20,7 @@ set -eu
 
 die() { echo "error: $*" >&2; exit 1; }
 
-[ $# -eq 2 ] || die "usage: $0 rclone|syncthing|gh arm64|x86_64|x86_gcc2"
+[ $# -eq 2 ] || die "usage: $0 <tool> arm64|x86_64|x86_gcc2 (one of tools/*.conf)"
 tool=$1
 arch=$2
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)

@@ -2,15 +2,20 @@
 
 English · [Italiano](README.it.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-rclone, Syncthing and the GitHub CLI, built for RenkuOS (Haiku) on arm64,
-x86_64 and 32-bit x86. Unofficial builds, not affiliated with the rclone
-project, the Syncthing Foundation or GitHub.
+rclone, Syncthing, the GitHub CLI, restic, Hugo, Caddy, fzf and lazygit, built
+for RenkuOS (Haiku) on arm64, x86_64 and 32-bit x86. Unofficial builds, not
+affiliated with any of those projects or with GitHub.
 
 | Tool | Version | Package | Package on 32-bit x86 |
 | --- | --- | --- | --- |
 | rclone | 1.76.0 | `rclone` | `rclone_x86` |
 | Syncthing | 1.30.0 | `syncthing` | `syncthing_x86` |
 | GitHub CLI (`gh`) | 2.100.0 | `github_cli` | `github_cli_x86` |
+| restic | 0.19.1 | `restic` | `restic_x86` |
+| Hugo | 0.165.0 | `hugo` | `hugo_x86` |
+| Caddy | 2.11.9 | `caddy` | `caddy_x86` |
+| fzf | 0.75.0 | `fzf` | `fzf_x86` |
+| lazygit | 0.66.3 | `lazygit` | `lazygit_x86` |
 
 ## Install with pkgman
 
@@ -26,7 +31,7 @@ If `pkgman add-repo` fails with `Operation not supported`, the network kit of
 that image has no TLS; use `http://` instead of `https://` in the address.
 
 Each package installs one command into `/boot/system/bin`: `rclone`,
-`syncthing` or `gh`.
+`syncthing`, `gh`, `restic`, `hugo`, `caddy`, `fzf` or `lazygit`.
 
 ## Install a package file
 
@@ -71,18 +76,80 @@ gh auth login
 release that the 32-bit toolchain can build; all three systems get the same
 version.
 
+## restic
+
+```sh
+restic init --repo ~/restic-repo
+restic -r ~/restic-repo backup ~/Documents
+restic -r ~/restic-repo snapshots
+restic -r ~/restic-repo restore latest --target ~/restored
+```
+
+Backups to a local directory, SFTP, a REST server, S3 and the other
+backends work as in the stock restic. Not available: `restic mount` (no FUSE)
+and `restic self-update`. Extended attributes are not backed up.
+
+## Hugo
+
+```sh
+hugo new site mysite
+cd mysite
+hugo server                  # then open http://127.0.0.1:1313
+hugo                         # build into public/
+```
+
+This is the standard edition. The extended edition's Sass compiler and WebP
+encoder need cgo, so themes that need "Hugo extended" do not build. Hugo
+server picks up edits and rebuilds while it runs.
+
+## Caddy
+
+```sh
+caddy file-server --root ~/public_html --listen 127.0.0.1:8080
+caddy run --config Caddyfile
+caddy reload --config Caddyfile
+caddy stop
+```
+
+The standard modules (file server, reverse proxy, automatic HTTPS, the
+Caddyfile). The admin endpoint listens on `127.0.0.1:2019` instead of
+`localhost:2019`: Go programs on Haiku cannot look up `localhost` yet, as
+there is no `/etc/hosts`. For the same reason, write `127.0.0.1` rather than
+`localhost` for upstreams, as in `reverse_proxy 127.0.0.1:3000`.
+
+## fzf
+
+```sh
+ls /boot/system/bin | fzf
+fzf --filter=term < list.txt   # non-interactive
+```
+
+## lazygit
+
+```sh
+cd my-repository
+lazygit
+```
+
+lazygit needs `git` 2.32 or later. On x86_64 and 32-bit x86 Haiku has it
+(`pkgman install git`, or `git_x86` on 32-bit x86); the RenkuOS arm64
+repository has no git yet, so there lazygit only starts far enough to say so.
+
 ## On arm64: stopping a running command
 
 On RenkuOS arm64 a Go program does not react to Ctrl-C or to `kill` yet (the
-Go runtime there does not deliver signals), so `syncthing` or
-`rclone serve` keep running. Shut Syncthing down from its web page (Actions ->
-Shutdown); stop anything else with `kill -9 <team id>` or from
-ProcessController. x86_64 and 32-bit x86 are not affected.
+Go runtime there does not deliver signals), so `syncthing`,
+`rclone serve`, `hugo server` or `caddy file-server` keep running. Shut
+Syncthing down from its web page (Actions -> Shutdown) and Caddy with
+`caddy stop`; stop anything else with `kill -9 <team id>` or from
+ProcessController. Interactive programs (fzf, lazygit) quit normally with
+their own keys (Esc, `q`). x86_64 and 32-bit x86 are not affected.
 
 ## Uninstall
 
 ```sh
-pkgman uninstall rclone      # or syncthing, github_cli; add _x86 on 32-bit x86
+pkgman uninstall rclone      # or syncthing, github_cli, restic, hugo, caddy,
+                             # fzf, lazygit; add _x86 on 32-bit x86
 ```
 
 ## Building

@@ -1,0 +1,49 @@
+diff --git a/listen.go b/listen.go
+index 2986fa6..82405e2 100644
+--- a/listen.go
++++ b/listen.go
+@@ -12,7 +12,7 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build !unix || solaris
++//go:build !unix || solaris || haiku
+ 
+ package caddy
+ 
+diff --git a/listen_reuseUnixSocket.go b/listen_reuseUnixSocket.go
+index 006610e..8569baa 100644
+--- a/listen_reuseUnixSocket.go
++++ b/listen_reuseUnixSocket.go
+@@ -12,7 +12,7 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build (!unix || solaris) && !windows
++//go:build (!unix || solaris || haiku) && !windows
+ 
+ package caddy
+ 
+diff --git a/listen_unix.go b/listen_unix.go
+index 5194066..3b28d5c 100644
+--- a/listen_unix.go
++++ b/listen_unix.go
+@@ -15,7 +15,7 @@
+ // Even though the filename ends in _unix.go, we still have to specify the
+ // build constraint here, because the filename convention only works for
+ // literal GOOS values, and "unix" is a shortcut unique to build tags.
+-//go:build unix && !solaris
++//go:build unix && !solaris && !haiku
+ 
+ package caddy
+ 
+diff --git a/listen_unix_setopt.go b/listen_unix_setopt.go
+index 13ee7b8..9b68f73 100644
+--- a/listen_unix_setopt.go
++++ b/listen_unix_setopt.go
+@@ -1,4 +1,4 @@
+-//go:build unix && !freebsd && !solaris
++//go:build unix && !freebsd && !solaris && !haiku
+ 
+ package caddy
+ 

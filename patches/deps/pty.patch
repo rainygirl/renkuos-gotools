@@ -1,0 +1,117 @@
+diff -ruN a/go.mod b/go.mod
+--- a/go.mod	2026-11-22 11:03:14.708213638 +0000
++++ b/go.mod	2026-11-22 11:03:15.437727013 +0000
+@@ -1,3 +1,5 @@
+ module github.com/creack/pty
+ 
+ go 1.18
++
++require golang.org/x/sys v0.50.0
+diff -ruN a/ioctl_haiku.go b/ioctl_haiku.go
+--- a/ioctl_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/ioctl_haiku.go	2026-11-22 11:03:15.424727013 +0000
+@@ -0,0 +1,32 @@
++//go:build haiku
++
++package pty
++
++import (
++	"syscall"
++	"unsafe"
++
++	"golang.org/x/sys/unix"
++)
++
++const (
++	TIOCGWINSZ = unix.TIOCGWINSZ
++	TIOCSWINSZ = unix.TIOCSWINSZ
++)
++
++// Haiku has no ioctl system call the syscall package can make; go through
++// libroot with x/sys. Only the window size requests are used here.
++func ioctlInner(fd, cmd, ptr uintptr) error {
++	switch cmd {
++	case TIOCSWINSZ:
++		return unix.IoctlSetWinsize(int(fd), uint(cmd), (*unix.Winsize)(unsafe.Pointer(ptr)))
++	case TIOCGWINSZ:
++		ws, err := unix.IoctlGetWinsize(int(fd), uint(cmd))
++		if err != nil {
++			return err
++		}
++		*(*unix.Winsize)(unsafe.Pointer(ptr)) = *ws
++		return nil
++	}
++	return syscall.ENOTSUP
++}
+diff -ruN a/ioctl_inner.go b/ioctl_inner.go
+--- a/ioctl_inner.go	2026-11-22 11:03:14.733919221 +0000
++++ b/ioctl_inner.go	2026-11-22 11:03:30.352725006 +0000
+@@ -1,5 +1,5 @@
+-//go:build !windows && !solaris && !aix
+-// +build !windows,!solaris,!aix
++//go:build !windows && !solaris && !aix && !haiku
++// +build !windows,!solaris,!aix,!haiku
+ 
+ package pty
+ 
+diff -ruN a/pty_haiku.go b/pty_haiku.go
+--- a/pty_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/pty_haiku.go	2026-11-22 11:03:15.436727013 +0000
+@@ -0,0 +1,46 @@
++//go:build haiku
++
++package pty
++
++import (
++	"fmt"
++	"os"
++	"syscall"
++
++	"golang.org/x/sys/unix"
++)
++
++// From Haiku's headers/private/drivers/tty.h, as libroot's posix_openpt,
++// grantpt and ptsname use them.
++const (
++	ioctlGetTTYIndex = unix.TCGETA + 32 // param is int32*
++	ioctlGrantTTY    = unix.TCGETA + 33 // no param
++)
++
++func open() (pty, tty *os.File, err error) {
++	p, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
++	if err != nil {
++		return nil, nil, err
++	}
++	// In case of error after this point, make sure we close the ptmx fd.
++	defer func() {
++		if err != nil {
++			_ = p.Close() // Best effort.
++		}
++	}()
++
++	index, err := unix.IoctlGetInt(int(p.Fd()), ioctlGetTTYIndex)
++	if err != nil {
++		return nil, nil, err
++	}
++	if err := unix.IoctlSetInt(int(p.Fd()), ioctlGrantTTY, 0); err != nil {
++		return nil, nil, err
++	}
++
++	sname := fmt.Sprintf("/dev/tt/%c%x", rune('p'+index/16), index%16)
++	t, err := os.OpenFile(sname, os.O_RDWR|syscall.O_NOCTTY, 0)
++	if err != nil {
++		return nil, nil, err
++	}
++	return p, t, nil
++}
+diff -ruN a/pty_unsupported.go b/pty_unsupported.go
+--- a/pty_unsupported.go	2026-11-22 11:03:14.774727013 +0000
++++ b/pty_unsupported.go	2026-11-22 11:03:30.362751464 +0000
+@@ -1,5 +1,5 @@
+-//go:build !linux && !darwin && !freebsd && !dragonfly && !netbsd && !openbsd && !solaris && !zos
+-// +build !linux,!darwin,!freebsd,!dragonfly,!netbsd,!openbsd,!solaris,!zos
++//go:build !linux && !darwin && !freebsd && !dragonfly && !netbsd && !openbsd && !solaris && !zos && !haiku
++// +build !linux,!darwin,!freebsd,!dragonfly,!netbsd,!openbsd,!solaris,!zos,!haiku
+ 
+ package pty
+ 

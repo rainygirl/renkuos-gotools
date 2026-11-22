@@ -1,7 +1,8 @@
 # Porting notes
 
-How rclone, Syncthing and the GitHub CLI are made to build and run on
-RenkuOS/Haiku, what each patch is for, and what was checked.
+How rclone, Syncthing, the GitHub CLI, restic, Hugo, Caddy, fzf and lazygit
+are made to build and run on RenkuOS/Haiku, what each patch is for, and what
+was checked.
 
 ## Layout
 
@@ -11,7 +12,7 @@ RenkuOS/Haiku, what each patch is for, and what was checked.
 | `package.sh` | makes `dist/<name>-<version>-<revision>-<arch>.hpkg` |
 | `tools/<tool>.conf` | repository, tag, build tags, version stamps, package description |
 | `tools/deps.list` | the dependencies that are swapped for a patched copy: name, module, version |
-| `patches/<tool>.patch` | changes to the tool's own source |
+| `patches/<tool>.patch` | changes to the tool's own source, if it needs any (Hugo and fzf do not) |
 | `patches/deps/<name>.patch` | changes to one dependency, against the version in `tools/deps.list` |
 | `patches/go/` | fixes to the Go toolchains themselves |
 
@@ -81,7 +82,7 @@ v0.50.0:
   and pointers are 4 bytes there, `off_t` and `ino_t` stay 8. The generated
   system call file is edited by hand for the two-word `off_t`;
 - `syscall_haiku_extra.go` for all three: `Madvise`, `Mlock`, `Munlock`,
-  `Msync`, `Mprotect`, `Statvfs`, `Getpgrp`, the `WNOHANG` family, and working
+  `Msync`, `Mprotect`, `Statvfs`, `Getpgrp`, `Getpgid` (fzf), the `WNOHANG` family, and working
   `Wait4` and `Gethostname`. The last two were declared without a body in the
   port and failed at link time as soon as something used them; `Wait4` is
   `waitpid`, since libroot has no `wait4`.
@@ -108,13 +109,19 @@ other Unix systems.
 | `ctgo` | certificate-transparency-go | system roots from `/system/data/ssl/CARootCertificates.pem` |
 | `flock` | github.com/gofrs/flock | use the `flock` implementation |
 | `go-diskfs` | github.com/diskfs/go-diskfs | use the Unix file property code |
+| `gointernal` | github.com/rogpeppe/go-internal | `lockedfile`: `fcntl` locks, as on AIX and Solaris; the inode type differs |
 | `isatty` | github.com/mattn/go-isatty | a real terminal check; upstream answers "never a terminal" on Haiku |
 | `goleveldb` | github.com/syndtr/goleveldb | `file_storage_haiku.go`: `fcntl` locks, as on Solaris |
+| `jibber` | github.com/cloudfoundry/jibber_jabber | locale from `LC_ALL`/`LANG`, as on the other Unix systems; adds the `go.mod` it lacks |
 | `logrus` | github.com/sirupsen/logrus | terminal check with `TCGETA` |
+| `mclib` | github.com/bep/mclib | Hugo's mkcert: the "installing a root is not supported" stub of the BSDs |
+| `pty` | github.com/creack/pty | `pty_haiku.go`: `/dev/ptmx`, the tty index and grant ioctls of `posix_openpt`/`ptsname`, slave `/dev/tt/<x>`; window size through x/sys |
+| `readline` | github.com/chzyer/readline | `term_haiku.go`: termios with `TCGETA`/`TCSETAF`, size through x/sys |
 | `sftp` | github.com/pkg/sftp | use the Unix stat and `ls` code |
 | `survey` | github.com/AlecAivazis/survey/v2 | `runereader_haiku.go`: termios through x/sys instead of a raw `ioctl` system call |
 | `tcell`, `tcell2` | github.com/gdamore/tcell v3 and v2 | Unix tty code, termios with `TCGETA`/`TCSETAW`; flushing input is best effort |
 | `termenv` | github.com/muesli/termenv | termios with `TCGETA`/`TCSETA`; reads the terminal's answers in Haiku's order |
+| `wazero` | github.com/tetratelabs/wazero | `Stat_t.Ino` is signed on Haiku |
 | `xdg` | github.com/adrg/xdg | use the Unix base directories |
 | `xterm` | golang.org/x/term | terminal support: `IsTerminal`, raw mode, size, `ReadPassword` |
 
@@ -178,6 +185,61 @@ the rest is in the terminal libraries above.
 2.101.0 and later need Go 1.27, and the 32-bit toolchain is 1.26.5, so all
 three architectures are built from 2.100.0.
 
+### restic 0.19.1
+
+0.20.0 asks for Go 1.26.10 in its `go.mod`, newer than the 32-bit toolchain
+(1.26.5), so all three are built from 0.19.1. Built with the
+`disable_grpc_modules` tag and without `selfupdate`, as upstream's
+`build.go` does apart from self-update.
+
+`patches/restic.patch`: SIGUSR1 prints the status as on Linux and Solaris
+(Haiku has no SIGINFO); no extended attributes (github.com/pkg/xattr has no
+Haiku code); the inode number from `stat` is converted, being signed on
+Haiku. `restic mount` is not available (no FUSE).
+
+### Hugo 0.165.0
+
+The standard edition, `CGO_ENABLED=0`: the extended edition's LibSass and
+WebP encoder are cgo. 0.166.0 and later ask for Go 1.27, so all three are
+built from 0.165.0. No change to Hugo itself; the dependencies it needed are
+`mclib`, `wazero`, `gointernal` and `afero` above. `hugo server` notices
+edits while it runs.
+
+### Caddy 2.11.9
+
+Standard modules only (`cmd/caddy`, no xcaddy plugins).
+
+`patches/caddy.patch` makes Haiku use Caddy's portable listener code, as
+Solaris does, instead of the Unix one. The Unix code relies on
+`SO_REUSEPORT` to bind the new listeners of a reloaded configuration while
+the old ones are still open; Haiku's TCP accepts the option but ignores it
+for listening sockets, so every `caddy reload` (and every config change over
+the API) failed with "address already in use" for the admin endpoint. The
+portable code shares one listener between the old and the new configuration.
+
+`tools/caddy.conf` sets the default admin address to `127.0.0.1:2019`
+through `-ldflags` (`caddy.DefaultAdminListen`, meant for packagers): Go's
+resolver reads `/etc/hosts`, which Haiku does not have (its hosts file is
+`/boot/system/settings/network/hosts`), so `localhost` is looked up over DNS
+and fails. With the stock default Caddy did not start at all ("starting
+caddy administration endpoint: listen tcp: lookup localhost ... no such
+host").
+
+### fzf 0.75.0
+
+No change to fzf itself: `unix.Getpgid` in `sys.patch` and the terminal
+libraries above are enough.
+
+### lazygit 0.66.3
+
+`patches/lazygit.patch`: gocui reads the window size through x/sys rather
+than a raw `ioctl` system call (`syscall.Syscall(SYS_IOCTL, ...)` does nothing
+useful on Haiku, so lazygit waited forever for a SIGWINCH before drawing
+anything), and the resume handler takes the process group from x/sys. The
+`pty` patch above lets lazygit run git with a pseudo-terminal, which it uses
+for diffs and for credential prompts. lazygit needs git 2.32 or later, which
+the RenkuOS arm64 repository does not have yet.
+
 ## Verification
 
 Each package was installed with `pkgman install` in a guest under QEMU and
@@ -199,6 +261,44 @@ subdirectory, `lsf` of an `:http:` remote, `about`; the Syncthing test above
 (A to B and B to A, both GUIs, shutdown over REST, and SIGTERM stops it);
 `gh api /zen` and `gh api /user` with a made-up token return 401. All pass.
 
+### restic, Hugo, Caddy, fzf, lazygit
+
+Checked on 2026-11-22 and 23 in the same kind of guests (RenkuOS arm64 live
+image, nightly hrev60450 x86_64 and x86_gcc2), working on a second, BFS
+formatted disk; every package installed with `pkgman install`. The 32-bit
+packages are built with the renkuos-golang-x86 revision 2 toolchain. The
+pseudo-terminal runs were driven over `ssh -tt` with the size set by `stty`,
+not in Terminal.
+
+| Tool | Checked in the guest | arm64 | x86_64 | 32-bit x86 |
+| --- | --- | --- | --- | --- |
+| restic | `version`; `init` of a local repository; two `backup`s of a 5 MB file, a small file, a subdirectory and a symlink; `snapshots`; `restore` (same md5, symlink kept); `check --read-data`; `forget --keep-last 1 --prune`; `check` | pass | pass | pass |
+| Hugo | `version`; `new site`, `new content`, build with three layouts (7 pages); `hugo server` on 127.0.0.1:1313 serves the home page and the post; an edit while serving is rebuilt and served | pass | pass | pass |
+| Caddy | `version`; `caddy run` of a Caddyfile with the default admin address: `file_server` and `reverse_proxy` to it answer; admin API answers; `caddy reload` with a changed Caddyfile takes effect (`browse` listing); `caddy stop`; `caddy file-server` subcommand | pass | pass | pass |
+| fzf | `--version`; `--filter`; interactive in a pseudo-terminal over ssh: typed query narrows the list, Enter prints the choice | pass | pass | pass |
+| lazygit | `--version`; started in a git repository in a pseudo-terminal over ssh: panels and the diff are drawn, a file staged and committed with `space`, `c`, a message and Enter (seen in `git log`), `q` quits | no git | pass | pass |
+
+On arm64, `hugo server` and `caddy file-server` ignore SIGTERM, as every Go
+program there does for now (below); `caddy stop` works. On x86_64 and 32-bit
+x86 both stop on SIGTERM.
+
+Found while checking these:
+
+- **No `/etc/hosts` for Go programs.** Go's resolver reads `/etc/hosts`;
+  Haiku keeps its hosts file in `/boot/system/settings/network/hosts`, so
+  `localhost` is sent to the DNS server and is not found. Caddy works around
+  it (see above); lazygit's `--profile` cannot listen on `localhost:6060`
+  for the same reason. A symlink
+  `/etc/hosts -> /boot/system/settings/network/hosts` fixes it for every Go
+  program; the real fix belongs in the Go ports' `net` package.
+- **Haiku's TCP ignores `SO_REUSEPORT` on listening sockets** (it only looks
+  at `SO_REUSEADDR`, and only for sockets in TIME_WAIT); see Caddy above.
+- **arm64: ramfs hung** under restic: `forget --prune` on a repository on a
+  ramfs volume (`mount -t ramfs`) stopped in the kernel, could not be killed,
+  and `ls` of that volume hung too; a cache directory removal there had
+  failed with "directory not empty" just before. The same steps pass on BFS.
+  A ramfs problem, not restic's.
+
 Found and not fixed:
 
 - **arm64: Go programs ignore SIGINT and SIGTERM** (`kill` and Ctrl-C do
@@ -211,5 +311,8 @@ Found and not fixed:
   row with `--contimeout 10s --timeout 15s` all finished. Cause not found.
 
 Not checked: Syncthing between two machines, or with a 2.x peer; rclone
-against a remote that needs credentials; `gh` after logging in; any of it on
-real hardware or on a RenkuOS x86 image.
+against a remote that needs credentials; `gh` after logging in; restic with a
+remote backend; Caddy's automatic HTTPS (it needs a public name); Hugo
+modules and themes; lazygit against a remote (push, pull, credential prompts
+through the pseudo-terminal) and in Terminal; fzf and lazygit in Terminal;
+any of it on real hardware or on a RenkuOS x86 image.

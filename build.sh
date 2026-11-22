@@ -6,9 +6,9 @@
 #   ./build.sh gh x86_gcc2            # 32-bit x86
 #
 # Clones the tool at the version pinned in tools/<tool>.conf, applies
-# patches/<tool>.patch, swaps in patched copies of the dependencies that do
-# not build for Haiku (patches/deps/, versions in tools/deps.list), and writes
-# dist/<arch>/<binary>.
+# patches/<tool>.patch if there is one, swaps in patched copies of the
+# dependencies that do not build for Haiku (patches/deps/, versions in
+# tools/deps.list), and writes dist/<arch>/<binary>.
 #
 # Runs on any machine that has a Go toolchain able to target Haiku on that
 # architecture. Name it with GO, or per architecture:
@@ -32,7 +32,7 @@ set -eu
 die() { echo "error: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
 
-[ $# -eq 2 ] || die "usage: $0 rclone|syncthing|gh arm64|x86_64|x86_gcc2"
+[ $# -eq 2 ] || die "usage: $0 <tool> arm64|x86_64|x86_gcc2 (one of tools/*.conf)"
 tool=$1
 case $2 in
 	arm64) arch=arm64; goarch=arm64; go=${GO:-${GO_ARM64:-go}} ;;
@@ -74,10 +74,12 @@ else
 	note "cloning $tool $TAG"
 	git clone --quiet --depth 1 --branch "$TAG" "$REPO" "$src" 2>/dev/null \
 		|| die "cannot clone $REPO at $TAG"
-	git -C "$src" apply --check "$here/patches/$tool.patch" \
-		|| die "patches/$tool.patch does not apply to $TAG"
-	git -C "$src" apply "$here/patches/$tool.patch"
-	note "applied patches/$tool.patch"
+	if [ -f "$here/patches/$tool.patch" ]; then
+		git -C "$src" apply --check "$here/patches/$tool.patch" \
+			|| die "patches/$tool.patch does not apply to $TAG"
+		git -C "$src" apply "$here/patches/$tool.patch"
+		note "applied patches/$tool.patch"
+	fi
 fi
 
 # --- patched dependencies ----------------------------------------------------

@@ -1,0 +1,33 @@
+diff --git a/internal/fs/node_noxattr.go b/internal/fs/node_noxattr.go
+index 3e3cdbd..3559221 100644
+--- a/internal/fs/node_noxattr.go
++++ b/internal/fs/node_noxattr.go
+@@ -1,4 +1,4 @@
+-//go:build aix || dragonfly || openbsd
++//go:build aix || dragonfly || haiku || openbsd
+ 
+ package fs
+ 
+diff --git a/internal/fs/stat_unix.go b/internal/fs/stat_unix.go
+index 176311f..3bb825d 100644
+--- a/internal/fs/stat_unix.go
++++ b/internal/fs/stat_unix.go
+@@ -17,7 +17,7 @@ func extendedStat(fi os.FileInfo) *ExtendedFileInfo {
+ 		Mode: fi.Mode(),
+ 
+ 		DeviceID:  uint64(s.Dev),
+-		Inode:     s.Ino,
++		Inode:     uint64(s.Ino),
+ 		Links:     uint64(s.Nlink),
+ 		UID:       s.Uid,
+ 		GID:       s.Gid,
+diff --git a/internal/ui/signals/signals_sysv.go b/internal/ui/signals/signals_sysv.go
+index e647283..4379aae 100644
+--- a/internal/ui/signals/signals_sysv.go
++++ b/internal/ui/signals/signals_sysv.go
+@@ -1,4 +1,4 @@
+-//go:build aix || linux || solaris
++//go:build aix || haiku || linux || solaris
+ 
+ package signals
+ 

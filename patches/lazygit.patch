@@ -1,0 +1,41 @@
+diff --git a/pkg/gocui/gui_others.go b/pkg/gocui/gui_others.go
+index 4becd50..ffa2654 100644
+--- a/pkg/gocui/gui_others.go
++++ b/pkg/gocui/gui_others.go
+@@ -10,9 +10,9 @@ import (
+ 	"os"
+ 	"os/signal"
+ 	"syscall"
+-	"unsafe"
+ 
+ 	"github.com/go-errors/errors"
++	"golang.org/x/sys/unix"
+ )
+ 
+ // getTermWindowSize is get terminal window size on linux or unix.
+@@ -36,8 +36,10 @@ func (g *Gui) getTermWindowSize() (int, int, error) {
+ 	signal.Notify(signalCh, syscall.SIGWINCH, syscall.SIGINT)
+ 
+ 	for {
+-		_, _, _ = syscall.Syscall(syscall.SYS_IOCTL,
+-			out.Fd(), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&sz)))
++		// x/sys rather than a raw ioctl system call, which Haiku does not have.
++		if ws, err := unix.IoctlGetWinsize(int(out.Fd()), unix.TIOCGWINSZ); err == nil {
++			sz.rows, sz.cols = ws.Row, ws.Col
++		}
+ 
+ 		// check terminal window size
+ 		termw, termh = int(sz.cols), int(sz.rows)
+diff --git a/pkg/gui/controllers/helpers/signal_handling.go b/pkg/gui/controllers/helpers/signal_handling.go
+index be7ce44..cb3f51a 100644
+--- a/pkg/gui/controllers/helpers/signal_handling.go
++++ b/pkg/gui/controllers/helpers/signal_handling.go
+@@ -29,7 +29,7 @@ func setForegroundPgrp() error {
+ 	}
+ 	defer unix.Close(fd)
+ 
+-	pgid := syscall.Getpgrp()
++	pgid := unix.Getpgrp()
+ 
+ 	return unix.IoctlSetPointerInt(fd, unix.TIOCSPGRP, pgid)
+ }

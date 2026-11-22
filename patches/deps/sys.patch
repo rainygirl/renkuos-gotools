@@ -990,7 +990,7 @@ diff -ruN a/unix/syscall_haiku_arm64.go b/unix/syscall_haiku_arm64.go
 diff -ruN a/unix/syscall_haiku_extra.go b/unix/syscall_haiku_extra.go
 --- a/unix/syscall_haiku_extra.go	1970-01-01 00:00:00.000000000 +0000
 +++ b/unix/syscall_haiku_extra.go	2026-11-22 06:00:45.435865013 +0000
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,125 @@
 +// Copyright 2026 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
@@ -1016,6 +1016,7 @@ diff -ruN a/unix/syscall_haiku_extra.go b/unix/syscall_haiku_extra.go
 +//go:cgo_import_dynamic libc_waitpid waitpid "libroot.so"
 +//go:cgo_import_dynamic libc_gethostname gethostname "libroot.so"
 +//go:cgo_import_dynamic libc_getpgrp getpgrp "libroot.so"
++//go:cgo_import_dynamic libc_getpgid getpgid "libroot.so"
 +
 +//go:linkname libc_madvise libc_madvise
 +//go:linkname libc_mlock libc_mlock
@@ -1026,6 +1027,7 @@ diff -ruN a/unix/syscall_haiku_extra.go b/unix/syscall_haiku_extra.go
 +//go:linkname libc_waitpid libc_waitpid
 +//go:linkname libc_gethostname libc_gethostname
 +//go:linkname libc_getpgrp libc_getpgrp
++//go:linkname libc_getpgid libc_getpgid
 +
 +var (
 +	libc_madvise,
@@ -1036,7 +1038,8 @@ diff -ruN a/unix/syscall_haiku_extra.go b/unix/syscall_haiku_extra.go
 +	libc_statvfs,
 +	libc_waitpid,
 +	libc_gethostname,
-+	libc_getpgrp syscallFunc
++	libc_getpgrp,
++	libc_getpgid syscallFunc
 +)
 +
 +// Options for Wait4, from <sys/wait.h>.
@@ -1104,6 +1107,14 @@ diff -ruN a/unix/syscall_haiku_extra.go b/unix/syscall_haiku_extra.go
 +func Getpgrp() int {
 +	r0, _, _ := rawSysvicall6(uintptr(unsafe.Pointer(&libc_getpgrp)), 0, 0, 0, 0, 0, 0, 0)
 +	return int(int32(r0))
++}
++
++func Getpgid(pid int) (pgid int, err error) {
++	r0, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_getpgid)), 1, uintptr(pid), 0, 0, 0, 0, 0)
++	if e1 != 0 {
++		return -1, syscall.Errno(e1)
++	}
++	return int(int32(r0)), nil
 +}
 diff -ruN a/unix/syscall_unix.go b/unix/syscall_unix.go
 --- a/unix/syscall_unix.go	2026-11-22 06:03:10.542831552 +0000

@@ -1,0 +1,15 @@
+diff -ruN a/internal/sysfs/ino_unix.go b/internal/sysfs/ino_unix.go
+--- a/internal/sysfs/ino_unix.go	2026-11-22 10:43:05.819457012 +0000
++++ b/internal/sysfs/ino_unix.go	2026-11-22 10:53:08.252870012 +0000
+@@ -13,9 +13,9 @@
+ func inoFromFileInfo(_ string, info fs.FileInfo) (sys.Inode, experimentalsys.Errno) {
+ 	switch v := info.Sys().(type) {
+ 	case *sys.Stat_t:
+-		return v.Ino, 0
++		return sys.Inode(v.Ino), 0
+ 	case *syscall.Stat_t:
+-		return v.Ino, 0
++		return sys.Inode(v.Ino), 0
+ 	default:
+ 		return 0, 0
+ 	}

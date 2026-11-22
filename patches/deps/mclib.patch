@@ -1,0 +1,9 @@
+diff -ruN a/internal/truststore_other.go b/internal/truststore_other.go
+--- a/internal/truststore_other.go	2026-11-22 10:35:54.472994342 +0000
++++ b/internal/truststore_other.go	2026-11-22 10:35:54.561349008 +0000
+@@ -1,4 +1,4 @@
+-//go:build dragonfly || freebsd || openbsd || netbsd || solaris
++//go:build dragonfly || freebsd || haiku || openbsd || netbsd || solaris
+ 
+ package internal
+ 

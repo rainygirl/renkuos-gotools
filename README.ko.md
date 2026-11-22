@@ -2,15 +2,20 @@
 
 [English](README.md) · [Italiano](README.it.md) · [日本語](README.ja.md) · 한국어
 
-rclone, Syncthing, GitHub CLI를 RenkuOS(Haiku)의 arm64, x86_64, 32비트 x86용으로
-빌드한 것입니다. 비공식 빌드이며 rclone 프로젝트, Syncthing Foundation,
-GitHub와는 관련이 없습니다.
+rclone, Syncthing, GitHub CLI, restic, Hugo, Caddy, fzf, lazygit을
+RenkuOS(Haiku)의 arm64, x86_64, 32비트 x86용으로 빌드한 것입니다. 비공식
+빌드이며 각 프로젝트나 GitHub와는 관련이 없습니다.
 
 | 도구 | 버전 | 패키지 | 32비트 x86 패키지 |
 | --- | --- | --- | --- |
 | rclone | 1.76.0 | `rclone` | `rclone_x86` |
 | Syncthing | 1.30.0 | `syncthing` | `syncthing_x86` |
 | GitHub CLI (`gh`) | 2.100.0 | `github_cli` | `github_cli_x86` |
+| restic | 0.19.1 | `restic` | `restic_x86` |
+| Hugo | 0.165.0 | `hugo` | `hugo_x86` |
+| Caddy | 2.11.9 | `caddy` | `caddy_x86` |
+| fzf | 0.75.0 | `fzf` | `fzf_x86` |
+| lazygit | 0.66.3 | `lazygit` | `lazygit_x86` |
 
 ## pkgman으로 설치
 
@@ -26,7 +31,7 @@ GitHub와는 관련이 없습니다.
 키트에 TLS가 없는 것입니다. 주소의 `https://`를 `http://`로 바꿔 쓰세요.
 
 각 패키지는 `/boot/system/bin`에 명령 하나를 설치합니다(`rclone`,
-`syncthing`, `gh`).
+`syncthing`, `gh`, `restic`, `hugo`, `caddy`, `fzf`, `lazygit`).
 
 ## 패키지 파일로 설치
 
@@ -71,18 +76,79 @@ gh auth login
 툴체인으로 빌드할 수 있는 가장 최신 릴리스이며, 세 시스템 모두 같은 버전을
 받습니다.
 
+## restic
+
+```sh
+restic init --repo ~/restic-repo
+restic -r ~/restic-repo backup ~/Documents
+restic -r ~/restic-repo snapshots
+restic -r ~/restic-repo restore latest --target ~/restored
+```
+
+로컬 디렉터리, SFTP, REST 서버, S3 등 다른 백엔드로의 백업은 원래의 restic과
+같이 동작합니다. `restic mount`(FUSE 없음)와 `restic self-update`는 쓸 수
+없습니다. 확장 속성은 백업하지 않습니다.
+
+## Hugo
+
+```sh
+hugo new site mysite
+cd mysite
+hugo server                  # 그다음 http://127.0.0.1:1313 을 엽니다
+hugo                         # public/에 빌드
+```
+
+표준 에디션입니다. 확장(extended) 에디션의 Sass 컴파일러와 WebP 인코더는
+cgo가 필요하므로, "Hugo extended"가 필요한 테마는 빌드되지 않습니다.
+`hugo server`는 실행 중에 바뀐 파일을 감지해 다시 빌드합니다.
+
+## Caddy
+
+```sh
+caddy file-server --root ~/public_html --listen 127.0.0.1:8080
+caddy run --config Caddyfile
+caddy reload --config Caddyfile
+caddy stop
+```
+
+표준 모듈(파일 서버, 리버스 프록시, 자동 HTTPS, Caddyfile)이 들어 있습니다.
+관리 엔드포인트는 `localhost:2019` 대신 `127.0.0.1:2019`에서 대기합니다.
+Haiku에는 `/etc/hosts`가 없어서 Go 프로그램이 아직 `localhost`를 찾지 못하기
+때문입니다. 같은 이유로 업스트림은 `reverse_proxy 127.0.0.1:3000`처럼
+`localhost` 대신 `127.0.0.1`로 쓰세요.
+
+## fzf
+
+```sh
+ls /boot/system/bin | fzf
+fzf --filter=term < list.txt   # 비대화식
+```
+
+## lazygit
+
+```sh
+cd my-repository
+lazygit
+```
+
+lazygit에는 `git` 2.32 이상이 필요합니다. x86_64와 32비트 x86의 Haiku에는
+있습니다(`pkgman install git`, 32비트 x86에서는 `git_x86`). RenkuOS arm64
+저장소에는 아직 git이 없어서, 그곳에서 lazygit은 그 사실을 알리고 끝납니다.
+
 ## arm64에서 실행 중인 명령 멈추기
 
 RenkuOS arm64에서는 Go 프로그램이 아직 Ctrl-C나 `kill`에 반응하지 않습니다
-(그쪽 Go 런타임이 시그널을 전달하지 않습니다). 그래서 `syncthing`이나
-`rclone serve`는 계속 실행됩니다. Syncthing은 웹 페이지(Actions ->
-Shutdown)에서 종료하고, 나머지는 `kill -9 <team id>`나 ProcessController로
-멈추세요. x86_64와 32비트 x86에는 해당하지 않습니다.
+(그쪽 Go 런타임이 시그널을 전달하지 않습니다). 그래서 `syncthing`,
+`rclone serve`, `hugo server`, `caddy file-server`는 계속 실행됩니다.
+Syncthing은 웹 페이지(Actions -> Shutdown)에서, Caddy는 `caddy stop`으로
+종료하고, 나머지는 `kill -9 <team id>`나 ProcessController로 멈추세요.
+대화식 프로그램(fzf, lazygit)은 자체 키(Esc, `q`)로 정상 종료됩니다. x86_64와 32비트 x86에는 해당하지 않습니다.
 
 ## 제거
 
 ```sh
-pkgman uninstall rclone      # 또는 syncthing, github_cli. 32비트 x86에서는 _x86을 붙입니다
+pkgman uninstall rclone      # 또는 syncthing, github_cli, restic, hugo, caddy,
+                             # fzf, lazygit. 32비트 x86에서는 _x86을 붙입니다
 ```
 
 ## 빌드

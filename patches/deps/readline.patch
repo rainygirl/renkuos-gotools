@@ -1,0 +1,55 @@
+diff -ruN a/term.go b/term.go
+--- a/term.go	2026-11-22 10:28:13.793162296 +0000
++++ b/term.go	2026-11-22 10:28:23.652819009 +0000
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd linux,!appengine netbsd openbsd os400 solaris
++// +build aix darwin dragonfly freebsd haiku linux,!appengine netbsd openbsd os400 solaris
+ 
+ // Package terminal provides support functions for dealing with terminals, as
+ // commonly found on UNIX systems.
+diff -ruN a/term_haiku.go b/term_haiku.go
+--- a/term_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/term_haiku.go	2026-11-22 10:28:23.727819009 +0000
+@@ -0,0 +1,30 @@
++// +build haiku
++
++package readline
++
++import "golang.org/x/sys/unix"
++
++// GetSize returns the dimensions of the given terminal.
++func GetSize(fd int) (int, int, error) {
++	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
++	if err != nil {
++		return 0, 0, err
++	}
++	return int(ws.Col), int(ws.Row), nil
++}
++
++type Termios unix.Termios
++
++// Haiku names the termios ioctls TCGETA and TCSETA; they take a struct
++// termios.
++func getTermios(fd int) (*Termios, error) {
++	termios, err := unix.IoctlGetTermios(fd, unix.TCGETA)
++	if err != nil {
++		return nil, err
++	}
++	return (*Termios)(termios), nil
++}
++
++func setTermios(fd int, termios *Termios) error {
++	return unix.IoctlSetTermios(fd, unix.TCSETAF, (*unix.Termios)(termios))
++}
+diff -ruN a/utils_unix.go b/utils_unix.go
+--- a/utils_unix.go	2026-11-22 10:28:13.924600755 +0000
++++ b/utils_unix.go	2026-11-22 10:28:23.675819009 +0000
+@@ -1,4 +1,4 @@
+-// +build aix darwin dragonfly freebsd linux,!appengine netbsd openbsd os400 solaris
++// +build aix darwin dragonfly freebsd haiku linux,!appengine netbsd openbsd os400 solaris
+ 
+ package readline
+ 

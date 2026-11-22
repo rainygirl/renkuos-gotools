@@ -2,15 +2,20 @@
 
 [English](README.md) · [Italiano](README.it.md) · 日本語 · [한국어](README.ko.md)
 
-rclone、Syncthing、GitHub CLI を RenkuOS(Haiku)の arm64、x86_64、32 ビット x86
-向けにビルドしたものです。非公式ビルドであり、rclone プロジェクト、Syncthing
-Foundation、GitHub とは関係ありません。
+rclone、Syncthing、GitHub CLI、restic、Hugo、Caddy、fzf、lazygit を
+RenkuOS(Haiku)の arm64、x86_64、32 ビット x86 向けにビルドしたものです。
+非公式ビルドであり、各プロジェクトや GitHub とは関係ありません。
 
 | ツール | バージョン | パッケージ | 32 ビット x86 のパッケージ |
 | --- | --- | --- | --- |
 | rclone | 1.76.0 | `rclone` | `rclone_x86` |
 | Syncthing | 1.30.0 | `syncthing` | `syncthing_x86` |
 | GitHub CLI (`gh`) | 2.100.0 | `github_cli` | `github_cli_x86` |
+| restic | 0.19.1 | `restic` | `restic_x86` |
+| Hugo | 0.165.0 | `hugo` | `hugo_x86` |
+| Caddy | 2.11.9 | `caddy` | `caddy_x86` |
+| fzf | 0.75.0 | `fzf` | `fzf_x86` |
+| lazygit | 0.66.3 | `lazygit` | `lazygit_x86` |
 
 ## pkgman でインストール
 
@@ -27,7 +32,7 @@ Foundation、GitHub とは関係ありません。
 置き換えてください。
 
 各パッケージは `/boot/system/bin` にコマンドを 1 つインストールします
-(`rclone`、`syncthing`、`gh`)。
+(`rclone`、`syncthing`、`gh`、`restic`、`hugo`、`caddy`、`fzf`、`lazygit`)。
 
 ## パッケージファイルからインストール
 
@@ -73,18 +78,81 @@ gh auth login
 用ツールチェーンでビルドできる最新のリリースで、3 つのシステムすべてに同じ
 バージョンを提供しています。
 
+## restic
+
+```sh
+restic init --repo ~/restic-repo
+restic -r ~/restic-repo backup ~/Documents
+restic -r ~/restic-repo snapshots
+restic -r ~/restic-repo restore latest --target ~/restored
+```
+
+ローカルディレクトリ、SFTP、REST サーバー、S3 などのバックエンドへの
+バックアップは通常の restic と同じように動きます。`restic mount`(FUSE が
+ない)と `restic self-update` は使えません。拡張属性はバックアップされません。
+
+## Hugo
+
+```sh
+hugo new site mysite
+cd mysite
+hugo server                  # その後 http://127.0.0.1:1313 を開く
+hugo                         # public/ にビルド
+```
+
+標準エディションです。extended エディションの Sass コンパイラと WebP
+エンコーダは cgo が必要なため、"Hugo extended" を必要とするテーマはビルド
+できません。`hugo server` は実行中の変更を検知して再ビルドします。
+
+## Caddy
+
+```sh
+caddy file-server --root ~/public_html --listen 127.0.0.1:8080
+caddy run --config Caddyfile
+caddy reload --config Caddyfile
+caddy stop
+```
+
+標準モジュール(ファイルサーバー、リバースプロキシ、自動 HTTPS、Caddyfile)
+入りです。管理エンドポイントは `localhost:2019` ではなく `127.0.0.1:2019` で
+待ち受けます。Haiku には `/etc/hosts` がないため、Go のプログラムはまだ
+`localhost` を引けません。同じ理由で、アップストリームは
+`reverse_proxy 127.0.0.1:3000` のように `localhost` ではなく `127.0.0.1` で
+書いてください。
+
+## fzf
+
+```sh
+ls /boot/system/bin | fzf
+fzf --filter=term < list.txt   # 非対話
+```
+
+## lazygit
+
+```sh
+cd my-repository
+lazygit
+```
+
+lazygit には `git` 2.32 以降が必要です。x86_64 と 32 ビット x86 の Haiku には
+あります(`pkgman install git`、32 ビット x86 では `git_x86`)。RenkuOS arm64
+のリポジトリにはまだ git がないため、そこでは lazygit はそのことを表示して
+終了します。
+
 ## arm64 で実行中のコマンドを止めるには
 
 RenkuOS arm64 では、Go のプログラムはまだ Ctrl-C や `kill` に反応しません
-(Go ランタイムがシグナルを配送しないため)。そのため `syncthing` や
-`rclone serve` は動き続けます。Syncthing はウェブページ(Actions ->
-Shutdown)から終了し、それ以外は `kill -9 <team id>` か ProcessController で
-止めてください。x86_64 と 32 ビット x86 には影響しません。
+(Go ランタイムがシグナルを配送しないため)。そのため `syncthing`、
+`rclone serve`、`hugo server`、`caddy file-server` は動き続けます。Syncthing
+はウェブページ(Actions -> Shutdown)から、Caddy は `caddy stop` で終了し、
+それ以外は `kill -9 <team id>` か ProcessController で止めてください。
+対話型のプログラム(fzf、lazygit)は自身のキー(Esc、`q`)で普通に終了します。x86_64 と 32 ビット x86 には影響しません。
 
 ## アンインストール
 
 ```sh
-pkgman uninstall rclone      # または syncthing、github_cli。32 ビット x86 では _x86 を付ける
+pkgman uninstall rclone      # または syncthing、github_cli、restic、hugo、caddy、
+                             # fzf、lazygit。32 ビット x86 では _x86 を付ける
 ```
 
 ## ビルド

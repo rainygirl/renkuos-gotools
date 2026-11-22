@@ -1,0 +1,14 @@
+diff -ruN a/go.mod b/go.mod
+--- a/go.mod	1970-01-01 00:00:00.000000000 +0000
++++ b/go.mod	2026-11-22 10:32:05.642298542 +0000
+@@ -0,0 +1 @@
++module github.com/cloudfoundry/jibber_jabber
+diff -ruN a/jibber_jabber_unix.go b/jibber_jabber_unix.go
+--- a/jibber_jabber_unix.go	2026-11-22 10:32:05.428191000 +0000
++++ b/jibber_jabber_unix.go	2026-11-22 10:32:05.642298542 +0000
+@@ -1,4 +1,4 @@
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin freebsd haiku linux netbsd openbsd
+ 
+ package jibber_jabber
+ 

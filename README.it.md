@@ -2,15 +2,20 @@
 
 [English](README.md) · Italiano · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-rclone, Syncthing e la CLI di GitHub, compilati per RenkuOS (Haiku) su arm64,
-x86_64 e x86 a 32 bit. Build non ufficiali, non affiliate al progetto rclone,
-alla Syncthing Foundation o a GitHub.
+rclone, Syncthing, la CLI di GitHub, restic, Hugo, Caddy, fzf e lazygit,
+compilati per RenkuOS (Haiku) su arm64, x86_64 e x86 a 32 bit. Build non
+ufficiali, non affiliate a nessuno di questi progetti né a GitHub.
 
 | Strumento | Versione | Pacchetto | Pacchetto su x86 a 32 bit |
 | --- | --- | --- | --- |
 | rclone | 1.76.0 | `rclone` | `rclone_x86` |
 | Syncthing | 1.30.0 | `syncthing` | `syncthing_x86` |
 | GitHub CLI (`gh`) | 2.100.0 | `github_cli` | `github_cli_x86` |
+| restic | 0.19.1 | `restic` | `restic_x86` |
+| Hugo | 0.165.0 | `hugo` | `hugo_x86` |
+| Caddy | 2.11.9 | `caddy` | `caddy_x86` |
+| fzf | 0.75.0 | `fzf` | `fzf_x86` |
+| lazygit | 0.66.3 | `lazygit` | `lazygit_x86` |
 
 ## Installazione con pkgman
 
@@ -26,7 +31,7 @@ Se `pkgman add-repo` fallisce con `Operation not supported`, il network kit di
 quell'immagine non ha TLS: nell'indirizzo usa `http://` al posto di `https://`.
 
 Ogni pacchetto installa un comando in `/boot/system/bin`: `rclone`,
-`syncthing` o `gh`.
+`syncthing`, `gh`, `restic`, `hugo`, `caddy`, `fzf` o `lazygit`.
 
 ## Installazione da un file di pacchetto
 
@@ -73,18 +78,82 @@ gh auth login
 versione più recente che la toolchain a 32 bit riesce a compilare; i tre
 sistemi ricevono la stessa versione.
 
+## restic
+
+```sh
+restic init --repo ~/restic-repo
+restic -r ~/restic-repo backup ~/Documents
+restic -r ~/restic-repo snapshots
+restic -r ~/restic-repo restore latest --target ~/restored
+```
+
+I backup su una directory locale, SFTP, un server REST, S3 e gli altri
+backend funzionano come nel restic originale. Non disponibili: `restic mount`
+(niente FUSE) e `restic self-update`. Gli attributi estesi non vengono salvati.
+
+## Hugo
+
+```sh
+hugo new site mysite
+cd mysite
+hugo server                  # poi apri http://127.0.0.1:1313
+hugo                         # compila in public/
+```
+
+È l'edizione standard. Il compilatore Sass e l'encoder WebP dell'edizione
+extended richiedono cgo, quindi i temi che vogliono "Hugo extended" non si
+compilano. `hugo server` rileva le modifiche e ricompila mentre è in
+esecuzione.
+
+## Caddy
+
+```sh
+caddy file-server --root ~/public_html --listen 127.0.0.1:8080
+caddy run --config Caddyfile
+caddy reload --config Caddyfile
+caddy stop
+```
+
+I moduli standard (file server, reverse proxy, HTTPS automatico, Caddyfile).
+L'endpoint di amministrazione ascolta su `127.0.0.1:2019` invece di
+`localhost:2019`: su Haiku i programmi Go non sanno ancora risolvere
+`localhost`, perché non c'è `/etc/hosts`. Per lo stesso motivo scrivi
+`127.0.0.1` invece di `localhost` per gli upstream, come in
+`reverse_proxy 127.0.0.1:3000`.
+
+## fzf
+
+```sh
+ls /boot/system/bin | fzf
+fzf --filter=term < list.txt   # non interattivo
+```
+
+## lazygit
+
+```sh
+cd my-repository
+lazygit
+```
+
+lazygit richiede `git` 2.32 o successivo. Su x86_64 e x86 a 32 bit Haiku ce
+l'ha (`pkgman install git`, oppure `git_x86` su x86 a 32 bit); il repository
+RenkuOS arm64 non ha ancora git, quindi lì lazygit si avvia solo quanto basta
+per dirlo.
+
 ## Su arm64: fermare un comando in esecuzione
 
 Su RenkuOS arm64 un programma Go non reagisce ancora a Ctrl-C né a `kill` (lì
-il runtime di Go non consegna i segnali), quindi `syncthing` o `rclone serve`
-restano in esecuzione. Arresta Syncthing dalla sua pagina web (Actions ->
-Shutdown); ferma tutto il resto con `kill -9 <team id>` o da
-ProcessController. x86_64 e x86 a 32 bit non hanno questo problema.
+il runtime di Go non consegna i segnali), quindi `syncthing`, `rclone serve`,
+`hugo server` o `caddy file-server` restano in esecuzione. Arresta Syncthing
+dalla sua pagina web (Actions -> Shutdown) e Caddy con `caddy stop`; ferma
+tutto il resto con `kill -9 <team id>` o da ProcessController. I programmi
+interattivi (fzf, lazygit) si chiudono normalmente con i loro tasti (Esc, `q`). x86_64 e x86 a 32 bit non hanno questo problema.
 
 ## Disinstallazione
 
 ```sh
-pkgman uninstall rclone      # oppure syncthing, github_cli; con _x86 su x86 a 32 bit
+pkgman uninstall rclone      # oppure syncthing, github_cli, restic, hugo, caddy,
+                             # fzf, lazygit; con _x86 su x86 a 32 bit
 ```
 
 ## Compilazione
