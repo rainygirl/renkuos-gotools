@@ -25,11 +25,11 @@ needs nothing else.
 | --- | --- | --- |
 | arm64 | [renkuos-golang](https://github.com/rainygirl/renkuos-golang), Go 1.27.4 | `go-haiku-arm64-startup.patch` |
 | x86_64 | [korli/go](https://github.com/korli/go) `golang-1.27-haiku`, Go 1.27.4 | none |
-| 32-bit x86 | the patched korli/go of renkuos-rtailscale `i386/`, Go 1.26.5 | `go-haiku386-fixes.patch` |
+| 32-bit x86 | [renkuos-golang-x86](https://github.com/rainygirl/renkuos-golang-x86) revision 2, Go 1.26.5 | none (the fixes are in its `patches/`) |
 
-Both patches only touch the standard library, so the toolchain does not have
-to be rebuilt: apply them to its tree (or to a copy) and the next `go build`
-compiles the changed packages.
+The arm64 patch only touches the standard library, so the toolchain does not
+have to be rebuilt: apply it to its tree (or to a copy) and the next
+`go build` compiles the changed packages.
 
 ### arm64: `go-haiku-arm64-startup.patch`
 
@@ -37,26 +37,34 @@ compiles the changed packages.
 startup path. Every program built with it prints `234567` on stderr before
 `main` runs. The patch removes them.
 
-### 32-bit x86: `go-haiku386-fixes.patch`
+### 32-bit x86: renkuos-golang-x86
 
-Found while bringing up these tools on a Haiku nightly (hrev60450, x86_gcc2)
-under QEMU. Each was reproduced with a small program before and after.
+The 32-bit tools are built with the cross toolchain that renkuos-golang-x86's
+`build.sh` leaves in `.work/go` (`bin/go` there runs on the build machine and
+targets haiku/386). It is the same tree as the native `golang_x86` package:
+korli/go `golang-1.26-haiku` with one haiku/386 patch series on top.
 
-- **Async preemption crashes.** A hello world died with a segmentation
-  violation at start unless run with `GODEBUG=asyncpreemptoff=1`, which is
-  what the Tailscale launcher sets. The patch makes that the default on
-  haiku/386; `GODEBUG=asyncpreemptoff=0` turns preemption back on.
-- **64-bit file offsets were passed as one word.** An `off_t` is two argument
-  words on 386. `Seek`, `pread`, `pwrite`, `Truncate` and `Ftruncate` passed
-  one, so the next argument landed in the high half: `Seek(5, io.SeekCurrent)`
-  returned 5 instead of advancing, `Seek(0, io.SeekEnd)` returned 0, and the
-  64-bit result of `lseek` lost its high half. The patch passes both words
-  and reads both result registers.
-- **`mmap` read its seventh argument word from the result slots.** The
-  runtime copies eight words to the C stack but took them straight from the
-  caller's frame, where words seven and eight are the return values. It now
-  copies the six real arguments into an array padded with zeros. File offsets
-  of 4 GiB and more are still out of reach of `mmap` through this path.
+That series now also has what this repository used to carry as
+`patches/go/go-haiku386-fixes.patch`, found while bringing up these tools on
+a Haiku nightly (hrev60450, x86_gcc2) under QEMU:
+
+- **Async preemption crashed** in the older tree of renkuos-rtailscale
+  `i386/`: a hello world died with a segmentation violation at start unless
+  run with `GODEBUG=asyncpreemptoff=1`. The old patch made that the default.
+  The cause was the unversioned `sigaction` import, which binds to the
+  BeOS-compatible symbol; renkuos-golang-x86 imports it by its version and
+  takes the handler's `siginfo` and `ucontext` as Haiku passes them, so
+  preemption stays on.
+- **64-bit file offsets were passed as one word** in `Seek`, `pread`,
+  `pwrite`, `Truncate`, `Ftruncate` and `mmap`. Fixed the same way in both;
+  renkuos-golang-x86 also passes the high half of `mmap`'s offset.
+- **sysvicall6 read words seven and eight from its result slots.** The
+  runtime copies eight argument words to the C stack. `patches/deps/sys.patch`
+  calls the 386 `mmap` with six words and needs the seventh (the high half of
+  the offset) to be zero, so the runtime now copies the six arguments into
+  an array padded with zeros (`go-haiku386-syscallargs.patch` there).
+  `build.sh` refuses a 386 toolchain without it. File offsets of 4 GiB and
+  more are still out of reach of `mmap` through x/sys.
 
 ## golang.org/x/sys
 
@@ -184,6 +192,13 @@ HVF), Haiku nightly hrev60450 x86_64 and x86_gcc2 (TCG).
 | gh | `--version`; `auth status` (not logged in); `api /zen` with a made-up token returns GitHub's 401; `completion`; `help` | pass | pass | pass |
 | gh | `auth login` prompts in Terminal (arrow keys, selection) up to the one-time code; no login done | not run | pass | not run |
 
+The 32-bit packages were rebuilt as revision 2 with the renkuos-golang-x86
+revision 2 toolchain and checked again on the x86_gcc2 nightly: `version` of
+all three; rclone `copy`, `check`, `md5sum` and `sync` of a 5 MB file and a
+subdirectory, `lsf` of an `:http:` remote, `about`; the Syncthing test above
+(A to B and B to A, both GUIs, shutdown over REST, and SIGTERM stops it);
+`gh api /zen` and `gh api /user` with a made-up token return 401. All pass.
+
 Found and not fixed:
 
 - **arm64: Go programs ignore SIGINT and SIGTERM** (`kill` and Ctrl-C do
@@ -194,8 +209,6 @@ Found and not fixed:
 - **arm64: an HTTPS listing hung twice** without rclone's `--contimeout` and
   `--timeout` set (it stayed inside the request for minutes). Eight runs in a
   row with `--contimeout 10s --timeout 15s` all finished. Cause not found.
-- 32-bit x86: Go async preemption is off by default (see above), so a
-  goroutine in a tight loop without function calls can delay the GC.
 
 Not checked: Syncthing between two machines, or with a 2.x peer; rclone
 against a remote that needs credentials; `gh` after logging in; any of it on

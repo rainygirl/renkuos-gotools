@@ -16,12 +16,13 @@
 #   GO_ARM64      github.com/rainygirl/renkuos-golang, with
 #                 patches/go/go-haiku-arm64-startup.patch applied
 #   GO_X86_64     github.com/korli/go, branch golang-1.27-haiku
-#   GO_X86_GCC2   the patched Go of renkuos-rtailscale/i386, with
-#                 patches/go/go-haiku386-fixes.patch applied on top
+#   GO_X86_GCC2   github.com/rainygirl/renkuos-golang-x86, revision 2 or
+#                 later: the cross toolchain its build.sh leaves in
+#                 .work/go/bin/go, with the whole haiku/386 patch series
 #
-# docs/PORTING.md says what those two patches are for. Without them the arm64
-# binaries print "234567" at every start and the 32-bit ones crash or
-# misplace file offsets.
+# docs/PORTING.md says why. Without the arm64 patch the binaries print
+# "234567" at every start; an older 32-bit toolchain crashes or misplaces
+# file offsets.
 #
 # Environment:
 #   WORK     scratch directory (default: ./.work)
@@ -50,6 +51,11 @@ out=$here/dist/$arch
 command -v "$go" >/dev/null 2>&1 || die "no Go toolchain: set GO=/path/to/go"
 "$go" tool dist list 2>/dev/null | grep -qx "haiku/$goarch" \
 	|| die "$("$go" version) cannot target haiku/$goarch; see the header of this script"
+# patches/deps/sys.patch's 386 mmap relies on the zero-padded argument window
+# of go-haiku386-syscallargs.patch (renkuos-golang-x86 revision 2).
+[ "$goarch" != 386 ] \
+	|| grep -q 'args := \[8\]uintptr' "$("$go" env GOROOT)/src/runtime/syscall_haiku.go" 2>/dev/null \
+	|| die "$("$go" env GOROOT) is not a renkuos-golang-x86 (revision 2+) tree; see the header of this script"
 
 . "$here/tools/$tool.conf"
 
