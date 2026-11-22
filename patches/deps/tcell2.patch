@@ -1,0 +1,68 @@
+diff -ruN a/nonblock_haiku.go b/nonblock_haiku.go
+--- a/nonblock_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/nonblock_haiku.go	2026-11-22 06:00:27.047865004 +0000
+@@ -0,0 +1,22 @@
++//go:build haiku
++// +build haiku
++
++package tcell
++
++import (
++	"syscall"
++
++	"golang.org/x/sys/unix"
++)
++
++// Haiku names the termios ioctls TCGETA/TCSETAW; they take a struct termios.
++func tcSetBufParams(fd int, vMin uint8, vTime uint8) error {
++	_ = syscall.SetNonblock(fd, true)
++	tio, err := unix.IoctlGetTermios(fd, unix.TCGETA)
++	if err != nil {
++		return err
++	}
++	tio.Cc[unix.VMIN] = vMin
++	tio.Cc[unix.VTIME] = vTime
++	return unix.IoctlSetTermios(fd, unix.TCSETAW, tio)
++}
+diff -ruN a/stdin_unix.go b/stdin_unix.go
+--- a/stdin_unix.go	2026-11-22 05:59:38.991160594 +0000
++++ b/stdin_unix.go	2026-11-22 06:00:27.041220421 +0000
+@@ -12,8 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package tcell
+ 
+diff -ruN a/tscreen_unix.go b/tscreen_unix.go
+--- a/tscreen_unix.go	2026-11-22 05:59:39.227121469 +0000
++++ b/tscreen_unix.go	2026-11-22 06:00:27.042363629 +0000
+@@ -12,8 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package tcell
+ 
+diff -ruN a/tty_unix.go b/tty_unix.go
+--- a/tty_unix.go	2026-11-22 05:59:39.230344302 +0000
++++ b/tty_unix.go	2026-11-22 06:00:27.042719838 +0000
+@@ -12,8 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package tcell
+ 

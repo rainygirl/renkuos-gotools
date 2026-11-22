@@ -1,0 +1,50 @@
+--- a/src/runtime/asm_arm64.s	2026-11-17 13:06:07.104659386 +0000
++++ b/src/runtime/asm_arm64.s	2026-11-22 05:43:29.983283840 +0000
+@@ -153,15 +153,7 @@
+ 	// save m0 to g0->m
+ 	MOVD	R0, g_m(g)
+ 
+-#ifdef GOOS_haiku
+-	MOVD	$'2', R0
+-	BL	runtime·dbgw(SB)
+-#endif
+ 	BL	runtime·check(SB)
+-#ifdef GOOS_haiku
+-	MOVD	$'3', R0
+-	BL	runtime·dbgw(SB)
+-#endif
+ 
+ #ifdef GOOS_windows
+ 	BL	runtime·wintls(SB)
+@@ -185,20 +177,8 @@
+ 	MOVD	16(RSP), R0		// copy argv
+ 	MOVD	R0, 0(RSP)
+ 	BL	runtime·args(SB)
+-#ifdef GOOS_haiku
+-	MOVD	$'4', R0
+-	BL	runtime·dbgw(SB)
+-#endif
+ 	BL	runtime·osinit(SB)
+-#ifdef GOOS_haiku
+-	MOVD	$'5', R0
+-	BL	runtime·dbgw(SB)
+-#endif
+ 	BL	runtime·schedinit(SB)
+-#ifdef GOOS_haiku
+-	MOVD	$'6', R0
+-	BL	runtime·dbgw(SB)
+-#endif
+ 
+ 	// create a new goroutine to start program
+ 	MOVD	$runtime·mainPC(SB), R0		// entry
+@@ -208,10 +188,6 @@
+ 	BL	runtime·newproc(SB)
+ 	ADD	$16, RSP
+ 
+-#ifdef GOOS_haiku
+-	MOVD	$'7', R0
+-	BL	runtime·dbgw(SB)
+-#endif
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+ 	UNDEF

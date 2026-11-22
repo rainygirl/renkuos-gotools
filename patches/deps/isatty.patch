@@ -1,0 +1,32 @@
+diff -ruN a/isatty_haiku.go b/isatty_haiku.go
+--- a/isatty_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/isatty_haiku.go	2026-11-22 06:31:16.775504596 +0000
+@@ -0,0 +1,17 @@
++//go:build haiku && !appengine && !tinygo
++
++package isatty
++
++import "golang.org/x/sys/unix"
++
++// IsTerminal return true if the file descriptor is terminal.
++func IsTerminal(fd uintptr) bool {
++	_, err := unix.IoctlGetTermios(int(fd), unix.TCGETA)
++	return err == nil
++}
++
++// IsCygwinTerminal return true if the file descriptor is a cygwin or msys2
++// terminal. This is also always false on this environment.
++func IsCygwinTerminal(fd uintptr) bool {
++	return false
++}
+diff -ruN a/isatty_others.go b/isatty_others.go
+--- a/isatty_others.go	2026-11-22 06:31:16.709783013 +0000
++++ b/isatty_others.go	2026-11-22 06:31:27.208607295 +0000
+@@ -1,5 +1,5 @@
+-//go:build (appengine || js || nacl || tinygo || wasm || wasip1 || wasip2 || haiku) && !windows
+-// +build appengine js nacl tinygo wasm wasip1 wasip2 haiku
++//go:build (appengine || js || nacl || tinygo || wasm || wasip1 || wasip2) && !windows
++// +build appengine js nacl tinygo wasm wasip1 wasip2
+ // +build !windows
+ 
+ package isatty

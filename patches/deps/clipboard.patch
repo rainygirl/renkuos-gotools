@@ -1,0 +1,25 @@
+diff -ruN a/clipboard_haiku.go b/clipboard_haiku.go
+--- a/clipboard_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/clipboard_haiku.go	2026-11-22 05:29:06.278236010 +0000
+@@ -0,0 +1,21 @@
++// +build haiku
++
++package clipboard
++
++import (
++	"os/exec"
++	"strings"
++)
++
++// Haiku ships /bin/clipboard: -p prints the text clip, -c sets it.
++func readAll() (string, error) {
++	out, err := exec.Command("clipboard", "-p").Output()
++	if err != nil {
++		return "", err
++	}
++	return strings.TrimSuffix(string(out), "\n"), nil
++}
++
++func writeAll(text string) error {
++	return exec.Command("clipboard", "-c", text).Run()
++}

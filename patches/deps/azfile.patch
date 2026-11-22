@@ -1,0 +1,9 @@
+diff -ruN a/file/mmf_unix.go b/file/mmf_unix.go
+--- a/file/mmf_unix.go	2026-11-22 05:27:28.545929298 +0000
++++ b/file/mmf_unix.go	2026-11-22 05:28:50.345236003 +0000
+@@ -1,4 +1,4 @@
+-//go:build linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris || aix
++//go:build haiku || linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris || aix
+ 
+ // Copyright (c) Microsoft Corporation. All rights reserved.
+ // Licensed under the MIT License. See License.txt in the project root for license information.

@@ -1,0 +1,26 @@
+diff -ruN a/const_bsds.go b/const_bsds.go
+--- a/const_bsds.go	2026-11-22 05:27:33.973833009 +0000
++++ b/const_bsds.go	2026-11-22 05:28:50.230236003 +0000
+@@ -11,8 +11,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || openbsd || freebsd || netbsd || dragonfly || zos
+-// +build aix darwin openbsd freebsd netbsd dragonfly zos
++//go:build haiku || aix || darwin || openbsd || freebsd || netbsd || dragonfly || zos
++// +build haiku aix darwin openbsd freebsd netbsd dragonfly zos
+ 
+ package afero
+ 
+diff -ruN a/const_win_unix.go b/const_win_unix.go
+--- a/const_win_unix.go	2026-11-22 05:27:34.021833009 +0000
++++ b/const_win_unix.go	2026-11-22 05:28:50.402236003 +0000
+@@ -10,7 +10,7 @@
+ // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+-//go:build !darwin && !openbsd && !freebsd && !dragonfly && !netbsd && !aix && !zos
++//go:build !haiku && !darwin && !openbsd && !freebsd && !dragonfly && !netbsd && !aix && !zos
+ // +build !darwin,!openbsd,!freebsd,!dragonfly,!netbsd,!aix,!zos
+ 
+ package afero

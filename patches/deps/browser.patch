@@ -1,0 +1,19 @@
+diff -ruN a/browser_haiku.go b/browser_haiku.go
+--- a/browser_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/browser_haiku.go	2026-11-22 06:07:51.435931001 +0000
+@@ -0,0 +1,6 @@
++package browser
++
++// Haiku ships /bin/open, which hands a URL to the preferred browser.
++func openBrowser(url string) error {
++	return runCmd("open", url)
++}
+diff -ruN a/browser_unsupported.go b/browser_unsupported.go
+--- a/browser_unsupported.go	2026-11-22 06:07:05.760433967 +0000
++++ b/browser_unsupported.go	2026-11-22 06:07:06.085703425 +0000
+@@ -1,4 +1,4 @@
+-// +build !linux,!windows,!darwin,!openbsd,!freebsd,!netbsd
++// +build !linux,!windows,!darwin,!openbsd,!freebsd,!netbsd,!haiku
+ 
+ package browser
+ 

@@ -1,0 +1,36 @@
+diff -ruN a/internal/pathutil/pathutil_unix.go b/internal/pathutil/pathutil_unix.go
+--- a/internal/pathutil/pathutil_unix.go	2026-11-22 05:27:20.504833003 +0000
++++ b/internal/pathutil/pathutil_unix.go	2026-11-22 05:28:50.201236003 +0000
+@@ -1,4 +1,4 @@
+-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
++//go:build haiku || aix || darwin || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
+ 
+ package pathutil
+ 
+diff -ruN a/internal/userdirs/config_unix.go b/internal/userdirs/config_unix.go
+--- a/internal/userdirs/config_unix.go	2026-11-22 05:27:20.532833003 +0000
++++ b/internal/userdirs/config_unix.go	2026-11-22 05:29:46.724912251 +0000
+@@ -1,4 +1,4 @@
+-//go:build aix || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
++//go:build haiku || aix || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
+ 
+ package userdirs
+ 
+diff -ruN a/internal/userdirs/config_unix_test.go b/internal/userdirs/config_unix_test.go
+--- a/internal/userdirs/config_unix_test.go	2026-11-22 05:27:20.538833003 +0000
++++ b/internal/userdirs/config_unix_test.go	2026-11-22 05:29:46.725462001 +0000
+@@ -1,4 +1,4 @@
+-//go:build aix || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
++//go:build haiku || aix || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
+ 
+ package userdirs_test
+ 
+diff -ruN a/paths_unix.go b/paths_unix.go
+--- a/paths_unix.go	2026-11-22 05:27:20.595833003 +0000
++++ b/paths_unix.go	2026-11-22 05:28:50.183236003 +0000
+@@ -1,4 +1,4 @@
+-//go:build aix || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
++//go:build haiku || aix || dragonfly || freebsd || (js && wasm) || nacl || linux || netbsd || openbsd || solaris
+ 
+ package xdg
+ 

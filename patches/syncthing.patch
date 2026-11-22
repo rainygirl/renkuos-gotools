@@ -1,0 +1,158 @@
+diff --git a/cmd/syncthing/openurl_unix.go b/cmd/syncthing/openurl_unix.go
+index 51e9b73..f685c86 100644
+--- a/cmd/syncthing/openurl_unix.go
++++ b/cmd/syncthing/openurl_unix.go
+@@ -11,13 +11,15 @@ package main
+ 
+ import (
+ 	"os/exec"
++	"runtime"
+ 	"syscall"
+ 
+ 	"github.com/syncthing/syncthing/lib/build"
+ )
+ 
+ func openURL(url string) error {
+-	if build.IsDarwin {
++	// Haiku has /bin/open too, and no xdg-open.
++	if build.IsDarwin || runtime.GOOS == "haiku" {
+ 		return exec.Command("open", url).Run()
+ 	}
+ 	cmd := exec.Command("xdg-open", url)
+diff --git a/lib/config/folderconfiguration.go b/lib/config/folderconfiguration.go
+index 0d23b13..e20da4d 100644
+--- a/lib/config/folderconfiguration.go
++++ b/lib/config/folderconfiguration.go
+@@ -15,6 +15,7 @@ import (
+ 	"fmt"
+ 	"path"
+ 	"path/filepath"
++	"runtime"
+ 	"slices"
+ 	"strings"
+ 	"time"
+@@ -301,6 +302,10 @@ func (f *FolderConfiguration) prepare(myID protocol.DeviceID, existingDevices ma
+ 		f.RescanIntervalS = 0
+ 	}
+ 
++	if runtime.GOOS == "haiku" {
++		// No watcher backend for Haiku: folders are picked up by the rescan.
++		f.FSWatcherEnabled = false
++	}
+ 	if f.FSWatcherDelayS <= 0 {
+ 		f.FSWatcherEnabled = false
+ 		f.FSWatcherDelayS = 10
+diff --git a/lib/fs/basicfs_fileinfo_linuxish.go b/lib/fs/basicfs_fileinfo_linuxish.go
+index 7375781..6f8c536 100644
+--- a/lib/fs/basicfs_fileinfo_linuxish.go
++++ b/lib/fs/basicfs_fileinfo_linuxish.go
+@@ -4,7 +4,7 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+-//go:build aix || dragonfly || linux || openbsd || solaris || illumos
++//go:build haiku || aix || dragonfly || linux || openbsd || solaris || illumos
+ // +build aix dragonfly linux openbsd solaris illumos
+ 
+ package fs
+diff --git a/lib/fs/basicfs_watch.go b/lib/fs/basicfs_watch.go
+index f785c06..1a3742b 100644
+--- a/lib/fs/basicfs_watch.go
++++ b/lib/fs/basicfs_watch.go
+@@ -4,7 +4,7 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-//go:build !(solaris && !cgo) && !(darwin && !cgo) && !(darwin && kqueue) && !(android && amd64)
++//go:build !haiku && !(solaris && !cgo) && !(darwin && !cgo) && !(darwin && kqueue) && !(android && amd64)
+ // +build !solaris cgo
+ // +build !darwin cgo
+ // +build !darwin !kqueue
+diff --git a/lib/fs/basicfs_watch_unsupported.go b/lib/fs/basicfs_watch_unsupported.go
+index b1126a5..6f2d91a 100644
+--- a/lib/fs/basicfs_watch_unsupported.go
++++ b/lib/fs/basicfs_watch_unsupported.go
+@@ -4,7 +4,7 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-//go:build (solaris && !cgo) || (darwin && !cgo) || (android && amd64) || (darwin && kqueue)
++//go:build haiku || (solaris && !cgo) || (darwin && !cgo) || (android && amd64) || (darwin && kqueue)
+ // +build solaris,!cgo darwin,!cgo android,amd64 darwin,kqueue
+ 
+ package fs
+diff --git a/lib/fs/basicfs_xattr_unix.go b/lib/fs/basicfs_xattr_unix.go
+index f43445c..ae1d248 100644
+--- a/lib/fs/basicfs_xattr_unix.go
++++ b/lib/fs/basicfs_xattr_unix.go
+@@ -4,7 +4,7 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+-//go:build !windows && !dragonfly && !illumos && !solaris && !openbsd
++//go:build !haiku && !windows && !dragonfly && !illumos && !solaris && !openbsd
+ // +build !windows,!dragonfly,!illumos,!solaris,!openbsd
+ 
+ package fs
+diff --git a/lib/fs/basicfs_xattr_unsupported.go b/lib/fs/basicfs_xattr_unsupported.go
+index 6ade64f..cb64756 100644
+--- a/lib/fs/basicfs_xattr_unsupported.go
++++ b/lib/fs/basicfs_xattr_unsupported.go
+@@ -4,7 +4,7 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+-//go:build windows || dragonfly || illumos || solaris || openbsd
++//go:build haiku || windows || dragonfly || illumos || solaris || openbsd
+ // +build windows dragonfly illumos solaris openbsd
+ 
+ package fs
+diff --git a/lib/syncthing/superuser_haiku.go b/lib/syncthing/superuser_haiku.go
+new file mode 100644
+index 0000000..1d902f6
+--- /dev/null
++++ b/lib/syncthing/superuser_haiku.go
+@@ -0,0 +1,15 @@
++// Copyright (C) 2026 The Syncthing Authors.
++//
++// This Source Code Form is subject to the terms of the Mozilla Public
++// License, v. 2.0. If a copy of the MPL was not distributed with this file,
++// You can obtain one at https://mozilla.org/MPL/2.0/.
++
++//go:build haiku
++
++package syncthing
++
++// Haiku is single-user: every program runs as uid 0, so that is not a
++// reason to warn.
++func isSuperUser() bool {
++	return false
++}
+diff --git a/lib/syncthing/superuser_unix.go b/lib/syncthing/superuser_unix.go
+index 4e76034..4aaa966 100644
+--- a/lib/syncthing/superuser_unix.go
++++ b/lib/syncthing/superuser_unix.go
+@@ -4,8 +4,8 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+-//go:build !windows
+-// +build !windows
++//go:build !windows && !haiku
++// +build !windows,!haiku
+ 
+ package syncthing
+ 
+diff --git a/lib/ur/memsize_unimpl.go b/lib/ur/memsize_unimpl.go
+index d1c576c..e553cb9 100644
+--- a/lib/ur/memsize_unimpl.go
++++ b/lib/ur/memsize_unimpl.go
+@@ -4,7 +4,7 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ // You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+-//go:build freebsd || openbsd || dragonfly
++//go:build haiku || freebsd || openbsd || dragonfly
+ // +build freebsd openbsd dragonfly
+ 
+ package ur

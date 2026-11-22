@@ -1,0 +1,98 @@
+--- a/src/runtime/runtime1.go	2026-11-22 03:52:18.533931004 +0000
++++ b/src/runtime/runtime1.go	2026-11-22 05:45:42.268976012 +0000
+@@ -405,6 +405,12 @@
+ 
+ func parseRuntimeDebugVars(godebug string) {
+ 	// defaults
++	if GOOS == "haiku" && GOARCH == "386" {
++		// Async preemption still crashes the 386 signal path (a hello world
++		// dies with SIGSEGV on hrev60450 under QEMU). Off by default;
++		// GODEBUG=asyncpreemptoff=0 turns it back on.
++		debug.asyncpreemptoff = 1
++	}
+ 	debug.cgocheck = 1
+ 	debug.invalidptr = 1
+ 	debug.adaptivestackstart = 1 // set this to 0 to turn larger initial goroutine stacks off
+--- a/src/runtime/syscall_haiku.go	2026-11-22 03:52:20.742048297 +0000
++++ b/src/runtime/syscall_haiku.go	2026-11-22 05:45:42.269635596 +0000
+@@ -40,10 +40,14 @@
+ //go:linkname syscall_sysvicall6
+ //go:cgo_unsafe_args
+ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
++	// asmsysvicall6 copies eight words. Hand it eight that are ours: read
++	// straight off the argument frame, words seven and eight are the result
++	// slots, so a call that needs seven (mmap, whose off_t is two) got junk.
++	args := [8]uintptr{a1, a2, a3, a4, a5, a6, 0, 0}
+ 	call := libcall{
+ 		fn:   fn,
+ 		n:    nargs,
+-		args: uintptr(unsafe.Pointer(&a1)),
++		args: uintptr(noescape(unsafe.Pointer(&args[0]))),
+ 	}
+ 	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
+@@ -55,10 +59,14 @@
+ //go:linkname syscall_rawsysvicall6
+ //go:cgo_unsafe_args
+ func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
++	// asmsysvicall6 copies eight words. Hand it eight that are ours: read
++	// straight off the argument frame, words seven and eight are the result
++	// slots, so a call that needs seven (mmap, whose off_t is two) got junk.
++	args := [8]uintptr{a1, a2, a3, a4, a5, a6, 0, 0}
+ 	call := libcall{
+ 		fn:   fn,
+ 		n:    nargs,
+-		args: uintptr(unsafe.Pointer(&a1)),
++		args: uintptr(noescape(unsafe.Pointer(&args[0]))),
+ 	}
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
+ 	return call.r1, call.r2, call.err
+--- a/src/syscall/zsyscall_haiku_386.go	2026-11-22 03:52:20.742223339 +0000
++++ b/src/syscall/zsyscall_haiku_386.go	2026-11-22 05:45:42.271382137 +0000
+@@ -724,7 +724,7 @@
+ 	if len(p) > 0 {
+ 		_p0 = &p[0]
+ 	}
+-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_pread)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_pread)), 5, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -737,7 +737,7 @@
+ 	if len(p) > 0 {
+ 		_p0 = &p[0]
+ 	}
+-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_pwrite)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_pwrite)), 5, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -814,8 +814,8 @@
+ }
+ 
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Lseek)), 3, uintptr(fd), uintptr(offset), uintptr(whence), 0, 0, 0)
+-	newoffset = int64(r0)
++	r0, r1, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Lseek)), 4, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0)
++	newoffset = int64(r1)<<32 | int64(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -956,7 +956,7 @@
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Truncate)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(length), 0, 0, 0, 0)
++	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Truncate)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(length), uintptr(length>>32), 0, 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -972,7 +972,7 @@
+ }
+ 
+ func Ftruncate(fd int, length int64) (err error) {
+-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Ftruncate)), 2, uintptr(fd), uintptr(length), 0, 0, 0, 0)
++	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Ftruncate)), 3, uintptr(fd), uintptr(length), uintptr(length>>32), 0, 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}

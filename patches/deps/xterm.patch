@@ -1,0 +1,40 @@
+diff -ruN a/term_unix.go b/term_unix.go
+--- a/term_unix.go	2026-11-22 06:31:16.488317471 +0000
++++ b/term_unix.go	2026-11-22 06:31:16.742808096 +0000
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++//go:build aix || darwin || dragonfly || freebsd || haiku || linux || netbsd || openbsd || solaris || zos
+ 
+ package term
+ 
+diff -ruN a/term_unix_haiku.go b/term_unix_haiku.go
+--- a/term_unix_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/term_unix_haiku.go	2026-11-22 06:31:16.763783013 +0000
+@@ -0,0 +1,12 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package term
++
++import "golang.org/x/sys/unix"
++
++// Haiku names the termios ioctls TCGETA and TCSETA; they take a struct
++// termios.
++const ioctlReadTermios = unix.TCGETA
++const ioctlWriteTermios = unix.TCSETA
+diff -ruN a/term_unsupported.go b/term_unsupported.go
+--- a/term_unsupported.go	2026-11-22 06:31:16.489783012 +0000
++++ b/term_unsupported.go	2026-11-22 06:31:16.758132971 +0000
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !zos && !windows && !solaris && !plan9
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !zos && !windows && !solaris && !plan9 && !haiku
+ 
+ package term
+ 

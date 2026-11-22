@@ -1,0 +1,140 @@
+diff -ruN a/terminal/runereader_haiku.go b/terminal/runereader_haiku.go
+--- a/terminal/runereader_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/terminal/runereader_haiku.go	2026-11-22 06:00:27.128317046 +0000
+@@ -0,0 +1,125 @@
++//go:build haiku
++// +build haiku
++
++// The terminal mode manipulation code is derived heavily from:
++// https://github.com/golang/crypto/blob/master/ssh/terminal/util.go:
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package terminal
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++
++	"golang.org/x/sys/unix"
++)
++
++const (
++	normalKeypad      = '['
++	applicationKeypad = 'O'
++)
++
++type runeReaderState struct {
++	term   unix.Termios
++	reader *bufio.Reader
++	buf    *bytes.Buffer
++}
++
++func newRuneReaderState(input FileReader) runeReaderState {
++	buf := new(bytes.Buffer)
++	return runeReaderState{
++		reader: bufio.NewReader(&BufferedReader{
++			In:     input,
++			Buffer: buf,
++		}),
++		buf: buf,
++	}
++}
++
++func (rr *RuneReader) Buffer() *bytes.Buffer {
++	return rr.state.buf
++}
++
++// For reading runes we just want to disable echo. Haiku has no ioctl system
++// call number to hand to syscall.Syscall6; the termios ioctls are TCGETA and
++// TCSETA, through libroot.
++func (rr *RuneReader) SetTermMode() error {
++	term, err := unix.IoctlGetTermios(int(rr.stdio.In.Fd()), unix.TCGETA)
++	if err != nil {
++		return err
++	}
++	rr.state.term = *term
++
++	newState := rr.state.term
++	newState.Lflag &^= unix.ECHO | unix.ECHONL | unix.ICANON | unix.ISIG
++	newState.Cc[unix.VMIN] = 1
++	newState.Cc[unix.VTIME] = 0
++	return unix.IoctlSetTermios(int(rr.stdio.In.Fd()), unix.TCSETA, &newState)
++}
++
++func (rr *RuneReader) RestoreTermMode() error {
++	return unix.IoctlSetTermios(int(rr.stdio.In.Fd()), unix.TCSETA, &rr.state.term)
++}
++
++// ReadRune Parse escape sequences such as ESC [ A for arrow keys.
++// See https://vt100.net/docs/vt102-ug/appendixc.html
++func (rr *RuneReader) ReadRune() (rune, int, error) {
++	r, size, err := rr.state.reader.ReadRune()
++	if err != nil {
++		return r, size, err
++	}
++
++	if r != KeyEscape {
++		return r, size, err
++	}
++
++	if rr.state.reader.Buffered() == 0 {
++		// no more characters so must be `Esc` key
++		return KeyEscape, 1, nil
++	}
++
++	r, size, err = rr.state.reader.ReadRune()
++	if err != nil {
++		return r, size, err
++	}
++
++	// ESC O ... or ESC [ ...?
++	if r != normalKeypad && r != applicationKeypad {
++		return r, size, fmt.Errorf("unexpected escape sequence from terminal: %q", []rune{KeyEscape, r})
++	}
++
++	keypad := r
++
++	r, size, err = rr.state.reader.ReadRune()
++	if err != nil {
++		return r, size, err
++	}
++
++	switch r {
++	case 'A': // ESC [ A or ESC O A
++		return KeyArrowUp, 1, nil
++	case 'B': // ESC [ B or ESC O B
++		return KeyArrowDown, 1, nil
++	case 'C': // ESC [ C or ESC O C
++		return KeyArrowRight, 1, nil
++	case 'D': // ESC [ D or ESC O D
++		return KeyArrowLeft, 1, nil
++	case 'F': // ESC [ F or ESC O F
++		return SpecialKeyEnd, 1, nil
++	case 'H': // ESC [ H or ESC O H
++		return SpecialKeyHome, 1, nil
++	case '3': // ESC [ 3
++		if keypad == normalKeypad {
++			// discard the following '~' key from buffer
++			_, _ = rr.state.reader.Discard(1)
++			return SpecialKeyDelete, 1, nil
++		}
++	}
++
++	// discard the following '~' key from buffer
++	_, _ = rr.state.reader.Discard(1)
++	return IgnoreKey, 1, nil
++}
+diff -ruN a/terminal/runereader_posix.go b/terminal/runereader_posix.go
+--- a/terminal/runereader_posix.go	2026-11-22 05:59:38.200821676 +0000
++++ b/terminal/runereader_posix.go	2026-11-22 06:00:27.057488254 +0000
+@@ -1,5 +1,5 @@
+-//go:build !windows
+-// +build !windows
++//go:build !windows && !haiku
++// +build !windows,!haiku
+ 
+ // The terminal mode manipulation code is derived heavily from:
+ // https://github.com/golang/crypto/blob/master/ssh/terminal/util.go:

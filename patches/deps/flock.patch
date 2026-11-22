@@ -1,0 +1,12 @@
+diff -ruN a/flock_unix.go b/flock_unix.go
+--- a/flock_unix.go	2026-11-22 05:27:29.280833007 +0000
++++ b/flock_unix.go	2026-11-22 05:28:50.364236003 +0000
+@@ -3,7 +3,7 @@
+ // Use of this source code is governed by the BSD 3-Clause
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build haiku || darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
+ 
+ package flock
+ 

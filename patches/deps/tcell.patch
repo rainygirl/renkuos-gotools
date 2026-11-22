@@ -1,0 +1,74 @@
+diff -ruN a/tscreen_unix.go b/tscreen_unix.go
+--- a/tscreen_unix.go	2026-11-22 05:27:38.667833012 +0000
++++ b/tscreen_unix.go	2026-11-22 05:28:50.242236003 +0000
+@@ -12,8 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package tcell
+ 
+diff -ruN a/tty/nonblock_haiku.go b/tty/nonblock_haiku.go
+--- a/tty/nonblock_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/tty/nonblock_haiku.go	2026-11-22 06:41:17.778249721 +0000
+@@ -0,0 +1,28 @@
++//go:build haiku
++
++package tty
++
++import (
++	"syscall"
++
++	"golang.org/x/sys/unix"
++)
++
++// Haiku names the termios ioctls TCGETA/TCSETAW; they take a struct termios.
++func tcSetBufParams(fd int, vMin uint8, vTime uint8) error {
++	_ = syscall.SetNonblock(fd, true)
++	tio, err := unix.IoctlGetTermios(fd, unix.TCGETA)
++	if err != nil {
++		return err
++	}
++	tio.Cc[unix.VMIN] = vMin
++	tio.Cc[unix.VTIME] = vTime
++	return unix.IoctlSetTermios(fd, unix.TCSETAW, tio)
++}
++
++// Flushing is best effort: the arm64 kernel of RenkuOS answers TCFLSH with
++// an error, and a failed flush is not a reason to refuse to start.
++func tcFlushInput(fd int) error {
++	_ = unix.IoctlSetInt(fd, unix.TCFLSH, unix.TCIFLUSH)
++	return nil
++}
+diff -ruN a/tty/stdin_unix.go b/tty/stdin_unix.go
+--- a/tty/stdin_unix.go	2026-11-22 05:27:38.796833012 +0000
++++ b/tty/stdin_unix.go	2026-11-22 05:28:50.260236003 +0000
+@@ -12,8 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package tty
+ 
+diff -ruN a/tty/tty_unix.go b/tty/tty_unix.go
+--- a/tty/tty_unix.go	2026-11-22 05:27:38.825833012 +0000
++++ b/tty/tty_unix.go	2026-11-22 05:28:50.272236003 +0000
+@@ -12,8 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package tty
+ 

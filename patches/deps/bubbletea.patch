@@ -1,0 +1,22 @@
+diff -ruN a/signals_unix.go b/signals_unix.go
+--- a/signals_unix.go	2026-11-22 05:59:39.836429927 +0000
++++ b/signals_unix.go	2026-11-22 06:00:27.028064171 +0000
+@@ -1,5 +1,5 @@
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || aix || zos
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris aix zos
++//go:build haiku || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || aix || zos
++// +build haiku darwin dragonfly freebsd linux netbsd openbsd solaris aix zos
+ 
+ package tea
+ 
+diff -ruN a/tty_unix.go b/tty_unix.go
+--- a/tty_unix.go	2026-11-22 05:59:39.849890594 +0000
++++ b/tty_unix.go	2026-11-22 06:00:27.028782879 +0000
+@@ -1,5 +1,5 @@
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || aix || zos
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris aix zos
++//go:build haiku || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || aix || zos
++// +build haiku darwin dragonfly freebsd linux netbsd openbsd solaris aix zos
+ 
+ package tea
+ 

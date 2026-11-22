@@ -1,0 +1,11 @@
+diff -ruN a/filesystem/squashfs/finalize_unix.go b/filesystem/squashfs/finalize_unix.go
+--- a/filesystem/squashfs/finalize_unix.go	2026-11-22 05:27:22.506833004 +0000
++++ b/filesystem/squashfs/finalize_unix.go	2026-11-22 05:28:50.203622044 +0000
+@@ -1,5 +1,5 @@
+-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || nacl || netbsd || openbsd || solaris
+-// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++//go:build haiku || aix || darwin || dragonfly || freebsd || (js && wasm) || linux || nacl || netbsd || openbsd || solaris
++// +build haiku aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ //nolint:unconvert // linter gets confused in this file
+ package squashfs

@@ -1,0 +1,127 @@
+diff --git a/backend/local/about_haiku.go b/backend/local/about_haiku.go
+new file mode 100644
+index 0000000..ae75ac8
+--- /dev/null
++++ b/backend/local/about_haiku.go
+@@ -0,0 +1,34 @@
++//go:build haiku
++
++package local
++
++import (
++	"context"
++	"fmt"
++	"os"
++
++	"github.com/rclone/rclone/fs"
++	"golang.org/x/sys/unix"
++)
++
++// About gets quota information
++func (f *Fs) About(ctx context.Context) (*fs.Usage, error) {
++	var s unix.Statvfs_t
++	err := unix.Statvfs(f.root, &s)
++	if err != nil {
++		if os.IsNotExist(err) {
++			return nil, fs.ErrorDirNotFound
++		}
++		return nil, fmt.Errorf("failed to read disk usage: %w", err)
++	}
++	bs := int64(s.Bsize)
++	usage := &fs.Usage{
++		Total: fs.NewUsageValue(bs * int64(s.Blocks)),
++		Used:  fs.NewUsageValue(bs * int64(s.Blocks-s.Bfree)),
++		Free:  fs.NewUsageValue(bs * int64(s.Bavail)),
++	}
++	return usage, nil
++}
++
++// check interface
++var _ fs.Abouter = &Fs{}
+diff --git a/backend/local/metadata_unix.go b/backend/local/metadata_unix.go
+index d1695ad..392891f 100644
+--- a/backend/local/metadata_unix.go
++++ b/backend/local/metadata_unix.go
+@@ -1,4 +1,4 @@
+-//go:build openbsd || solaris
++//go:build haiku || openbsd || solaris
+ 
+ package local
+ 
+diff --git a/fs/log/redirect_stderr.go b/fs/log/redirect_stderr.go
+index 552ca49..4c7c86a 100644
+--- a/fs/log/redirect_stderr.go
++++ b/fs/log/redirect_stderr.go
+@@ -1,6 +1,6 @@
+ // Log the panic to the log file - for oses which can't do this
+ 
+-//go:build !windows && !darwin && !dragonfly && !freebsd && !linux && !nacl && !netbsd && !openbsd && !aix
++//go:build !haiku && !windows && !darwin && !dragonfly && !freebsd && !linux && !nacl && !netbsd && !openbsd && !aix
+ 
+ package log
+ 
+diff --git a/lib/buildinfo/osversion.go b/lib/buildinfo/osversion.go
+index f04e56b..f9c9bbe 100644
+--- a/lib/buildinfo/osversion.go
++++ b/lib/buildinfo/osversion.go
+@@ -1,4 +1,4 @@
+-//go:build !windows
++//go:build !windows && !haiku
+ 
+ package buildinfo
+ 
+diff --git a/lib/buildinfo/osversion_haiku.go b/lib/buildinfo/osversion_haiku.go
+new file mode 100644
+index 0000000..d05f351
+--- /dev/null
++++ b/lib/buildinfo/osversion_haiku.go
+@@ -0,0 +1,16 @@
++//go:build haiku
++
++package buildinfo
++
++import "golang.org/x/sys/unix"
++
++// GetOSVersion returns OS version and kernel from uname
++func GetOSVersion() (osVersion, osKernel string) {
++	var u unix.Utsname
++	if err := unix.Uname(&u); err != nil {
++		return "", ""
++	}
++	osVersion = unix.ByteSliceToString(u.Sysname[:]) + " " + unix.ByteSliceToString(u.Release[:])
++	osKernel = unix.ByteSliceToString(u.Version[:]) + " (" + unix.ByteSliceToString(u.Machine[:]) + ")"
++	return osVersion, osKernel
++}
+diff --git a/lib/diskusage/diskusage_haiku.go b/lib/diskusage/diskusage_haiku.go
+new file mode 100644
+index 0000000..96f6cc1
+--- /dev/null
++++ b/lib/diskusage/diskusage_haiku.go
+@@ -0,0 +1,27 @@
++//go:build haiku
++
++package diskusage
++
++import (
++	"golang.org/x/sys/unix"
++)
++
++// New returns the disk status for dir.
++//
++// May return Unsupported error if it doesn't work on this platform.
++func New(dir string) (info Info, err error) {
++	var statfs unix.Statvfs_t
++	err = unix.Statvfs(dir, &statfs)
++	if err != nil {
++		return info, err
++	}
++	// Note that these can be different sizes on different OSes so
++	// we upcast them all to uint64
++	//nolint:unconvert
++	info.Free = uint64(statfs.Bfree) * uint64(statfs.Bsize)
++	//nolint:unconvert
++	info.Available = uint64(statfs.Bavail) * uint64(statfs.Bsize)
++	//nolint:unconvert
++	info.Total = uint64(statfs.Blocks) * uint64(statfs.Bsize)
++	return info, nil
++}

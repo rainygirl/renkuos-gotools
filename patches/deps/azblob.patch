@@ -1,0 +1,9 @@
+diff -ruN a/internal/shared/mmf_unix.go b/internal/shared/mmf_unix.go
+--- a/internal/shared/mmf_unix.go	2026-11-22 05:27:27.930833007 +0000
++++ b/internal/shared/mmf_unix.go	2026-11-22 05:28:50.341679253 +0000
+@@ -1,4 +1,4 @@
+-//go:build linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris || aix || zos
++//go:build haiku || linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris || aix || zos
+ 
+ // Copyright (c) Microsoft Corporation. All rights reserved.
+ // Licensed under the MIT License. See License.txt in the project root for license information.

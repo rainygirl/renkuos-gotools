@@ -1,0 +1,63 @@
+diff -ruN a/termenv_haiku.go b/termenv_haiku.go
+--- a/termenv_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/termenv_haiku.go	2026-11-22 06:00:27.045865004 +0000
+@@ -0,0 +1,20 @@
++//go:build haiku
++// +build haiku
++
++package termenv
++
++import "golang.org/x/sys/unix"
++
++// Haiku names the termios ioctls TCGETA/TCSETA; they take a struct termios.
++const (
++	tcgetattr = unix.TCGETA
++	tcsetattr = unix.TCSETA
++)
++
++func isForeground(fd int) bool {
++	pgrp, err := unix.IoctlGetInt(fd, unix.TIOCGPGRP)
++	if err != nil {
++		return false
++	}
++	return pgrp == unix.Getpgrp()
++}
+diff -ruN a/termenv_unix.go b/termenv_unix.go
+--- a/termenv_unix.go	2026-11-22 05:59:36.493495717 +0000
++++ b/termenv_unix.go	2026-11-22 06:34:19.315047722 +0000
+@@ -1,11 +1,12 @@
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris zos
++//go:build haiku || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
++// +build haiku darwin dragonfly freebsd linux netbsd openbsd solaris zos
+ 
+ package termenv
+ 
+ import (
+ 	"fmt"
+ 	"io"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -279,6 +280,20 @@
+ 
+ 	// if this is not OSC response, then the terminal does not support it
+ 	if !isOSC {
++		// ... except on Haiku, whose Terminal answers the cursor query first
++		// and the OSC one right after it. Left unread, that answer would be
++		// taken for typed input by whatever reads the terminal next.
++		if runtime.GOOS == "haiku" && o.waitForData(100*time.Millisecond) == nil {
++			res, isOSC, err = o.readNextResponse()
++			if err == nil && isOSC {
++				// an ST terminator is two bytes; the scan stops at the first
++				if strings.HasSuffix(res, string(ESC)) && o.waitForData(100*time.Millisecond) == nil {
++					var b [1]byte
++					o.TTY().Read(b[:]) //nolint:errcheck
++				}
++				return res, nil
++			}
++		}
+ 		return "", ErrStatusReport
+ 	}
+ 

@@ -1,0 +1,14 @@
+diff -ruN a/terminal_check_haiku.go b/terminal_check_haiku.go
+--- a/terminal_check_haiku.go	1970-01-01 00:00:00.000000000 +0000
++++ b/terminal_check_haiku.go	2026-11-22 05:29:06.256236010 +0000
+@@ -0,0 +1,10 @@
++//go:build haiku && !tinygo
++
++package logrus
++
++import "golang.org/x/sys/unix"
++
++func isTerminal(fd int) bool {
++	_, err := unix.IoctlGetTermios(fd, unix.TCGETA)
++	return err == nil
++}
