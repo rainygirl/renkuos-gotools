@@ -42,10 +42,12 @@ pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
 
 패키지 리비전: arm64에서는 `rclone`, `syncthing`, `github_cli`가 리비전
-2이고 나머지는 리비전 1입니다. 32비트 x86에서는 `rclone_x86`,
-`syncthing_x86`, `github_cli_x86`가 리비전 2이고 나머지는 리비전 1이며,
-x86_64는 모두 리비전 1입니다. arm64 패키지는 시그널을 전달하는
-golang_bin 리비전 10의 Go 툴체인으로 빌드했습니다.
+2이고 나머지는 리비전 1입니다. x86_64는 모두 리비전 2입니다. 32비트
+x86에서는 `rclone_x86`, `syncthing_x86`, `github_cli_x86`가 리비전 3이고
+나머지는 리비전 2입니다. arm64 패키지는 시그널을 전달하는 golang_bin
+리비전 10의 Go 툴체인으로, 32비트 패키지는 golang_x86 리비전 3의 툴체인으로
+빌드했습니다. 세 시스템 모두 툴체인이 Haiku의 hosts 파일을 읽으므로
+`localhost`를 찾을 수 있습니다.
 
 ## rclone
 
@@ -119,10 +121,9 @@ caddy stop
 
 표준 모듈(파일 서버, 리버스 프록시, 자동 HTTPS, Caddyfile)이 들어 있습니다.
 관리 엔드포인트는 `localhost:2019` 대신 `127.0.0.1:2019`에서 대기합니다.
-x86_64와 32비트 x86에서는 Haiku에 `/etc/hosts`가 없어서 Go 프로그램이 아직
-`localhost`를 찾지 못합니다. 그쪽에서는 `reverse_proxy 127.0.0.1:3000`처럼
-`localhost` 대신 `127.0.0.1`로 쓰세요. arm64 빌드는 Haiku의 hosts 파일을
-읽으므로 `localhost`가 동작합니다.
+세 시스템 모두에서 `localhost`를 찾을 수 있으므로(Haiku의 hosts 파일
+`/boot/system/settings/network/hosts`를 읽습니다) Caddyfile에
+`admin localhost:2019`나 `reverse_proxy localhost:3000`을 써도 됩니다.
 
 ## fzf
 

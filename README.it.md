@@ -42,11 +42,13 @@ pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
 
 Revisioni dei pacchetti: su arm64 `rclone`, `syncthing` e `github_cli`
-sono alla revisione 2 e gli altri alla revisione 1; su x86 a 32 bit
-`rclone_x86`, `syncthing_x86` e `github_cli_x86` sono alla revisione 2 e
-gli altri alla 1; su x86_64 sono tutti alla revisione 1. I pacchetti arm64
-sono compilati con la toolchain Go di golang_bin revisione 10, che
-consegna i segnali.
+sono alla revisione 2 e gli altri alla revisione 1; su x86_64 sono tutti
+alla revisione 2; su x86 a 32 bit `rclone_x86`, `syncthing_x86` e
+`github_cli_x86` sono alla revisione 3 e gli altri alla 2. I pacchetti
+arm64 sono compilati con la toolchain Go di golang_bin revisione 10, che
+consegna i segnali, quelli a 32 bit con quella di golang_x86 revisione 3.
+Su tutti e tre i sistemi la toolchain legge il file hosts di Haiku, quindi
+`localhost` si risolve.
 
 ## rclone
 
@@ -123,11 +125,10 @@ caddy stop
 
 I moduli standard (file server, reverse proxy, HTTPS automatico, Caddyfile).
 L'endpoint di amministrazione ascolta su `127.0.0.1:2019` invece di
-`localhost:2019`. Su x86_64 e x86 a 32 bit i programmi Go non sanno ancora
-risolvere `localhost`, perché Haiku non ha `/etc/hosts`: lì scrivi
-`127.0.0.1` invece di `localhost`, come in `reverse_proxy 127.0.0.1:3000`.
-La build arm64 legge il file hosts di Haiku, quindi lì `localhost`
-funziona.
+`localhost:2019`. `localhost` si risolve su tutti e tre i sistemi (gli
+strumenti leggono il file hosts di Haiku,
+`/boot/system/settings/network/hosts`), quindi anche `admin localhost:2019`
+o `reverse_proxy localhost:3000` in un Caddyfile funzionano.
 
 ## fzf
 

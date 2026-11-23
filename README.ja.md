@@ -43,10 +43,13 @@ pkgman install ./rclone-1.76.0-2-arm64.hpkg
 ```
 
 パッケージのリビジョン: arm64 では `rclone`、`syncthing`、`github_cli` が
-リビジョン 2、ほかはリビジョン 1 です。32 ビット x86 では `rclone_x86`、
-`syncthing_x86`、`github_cli_x86` がリビジョン 2、ほかはリビジョン 1、
-x86_64 はすべてリビジョン 1 です。arm64 のパッケージは、シグナルを配送する
-golang_bin リビジョン 10 の Go ツールチェーンでビルドしています。
+リビジョン 2、ほかはリビジョン 1 です。x86_64 はすべてリビジョン 2 です。
+32 ビット x86 では `rclone_x86`、`syncthing_x86`、`github_cli_x86` が
+リビジョン 3、ほかはリビジョン 2 です。arm64 のパッケージはシグナルを配送する
+golang_bin リビジョン 10 の Go ツールチェーンで、32 ビットのパッケージは
+golang_x86 リビジョン 3 のツールチェーンでビルドしています。3 つのシステム
+すべてでツールチェーンが Haiku の hosts ファイルを読むので、`localhost` を
+引けます。
 
 ## rclone
 
@@ -121,11 +124,9 @@ caddy stop
 
 標準モジュール(ファイルサーバー、リバースプロキシ、自動 HTTPS、Caddyfile)
 入りです。管理エンドポイントは `localhost:2019` ではなく `127.0.0.1:2019` で
-待ち受けます。x86_64 と 32 ビット x86 では Haiku に `/etc/hosts` がないため、
-Go のプログラムはまだ `localhost` を引けません。そちらでは
-`reverse_proxy 127.0.0.1:3000` のように `localhost` ではなく `127.0.0.1` で
-書いてください。arm64 のビルドは Haiku の hosts ファイルを読むので、
-`localhost` が使えます。
+待ち受けます。3 つのシステムすべてで `localhost` を引けるので (Haiku の hosts
+ファイル `/boot/system/settings/network/hosts` を読みます)、Caddyfile に
+`admin localhost:2019` や `reverse_proxy localhost:3000` と書いても動きます。
 
 ## fzf
 

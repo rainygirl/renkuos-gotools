@@ -16,14 +16,22 @@
 #   GO_ARM64      github.com/rainygirl/renkuos-golang, golang_bin revision
 #                 10 or later (signal and startup fixes); an older tree
 #                 needs patches/go/go-haiku-arm64-startup.patch
-#   GO_X86_64     github.com/korli/go, branch golang-1.27-haiku
-#   GO_X86_GCC2   github.com/rainygirl/renkuos-golang-x86, revision 2 or
+#   GO_X86_64     github.com/korli/go, branch golang-1.27-haiku, with
+#                 patches/go/go-haiku-amd64-hosts.patch applied: copy the
+#                 tree and "git apply" it there. The patch only adds
+#                 src/net/hook_haiku.go, and the standard library is
+#                 compiled from source for every build, so nothing has to
+#                 be rebuilt (make.bash is not needed)
+#   GO_X86_GCC2   github.com/rainygirl/renkuos-golang-x86, revision 3 or
 #                 later: the cross toolchain its build.sh leaves in
 #                 .work/go/bin/go, with the whole haiku/386 patch series
 #
 # docs/PORTING.md says why. With an older arm64 tree the binaries print
 # "234567" at every start and ignore SIGTERM and Ctrl-C; an older 32-bit
-# toolchain crashes or misplaces file offsets.
+# toolchain crashes or misplaces file offsets. Without src/net/hook_haiku.go
+# (arm64 before revision 10, x86_64 without the patch, 32-bit before
+# revision 3) Go's resolver looks for /etc/hosts, which Haiku does not have,
+# and "localhost" does not resolve; this script refuses such a tree.
 #
 # Environment:
 #   WORK     scratch directory (default: ./.work)
@@ -60,6 +68,9 @@ export GOTOOLCHAIN=local
 [ "$goarch" != 386 ] \
 	|| grep -q 'args := \[8\]uintptr' "$("$go" env GOROOT)/src/runtime/syscall_haiku.go" 2>/dev/null \
 	|| die "$("$go" env GOROOT) is not a renkuos-golang-x86 (revision 2+) tree; see the header of this script"
+# Haiku keeps its hosts file in /boot/system/settings/network.
+[ -f "$("$go" env GOROOT)/src/net/hook_haiku.go" ] \
+	|| die "$("$go" env GOROOT) does not read Haiku's hosts file (src/net/hook_haiku.go); see the header of this script"
 
 . "$here/tools/$tool.conf"
 

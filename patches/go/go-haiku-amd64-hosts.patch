@@ -1,0 +1,18 @@
+diff --git a/src/net/hook_haiku.go b/src/net/hook_haiku.go
+new file mode 100644
+index 00000000..155ba3b8
+--- /dev/null
++++ b/src/net/hook_haiku.go
+@@ -0,0 +1,12 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++// Haiku has no /etc/hosts: libnetwork reads the hosts file from the
++// network settings directory, next to resolv.conf (see dnsclient_unix.go).
++// Without this, the pure Go resolver cannot resolve "localhost".
++func init() {
++	hostsFilePath = "/boot/system/settings/network/hosts"
++}

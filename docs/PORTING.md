@@ -25,8 +25,11 @@ needs nothing else.
 | Architecture | Toolchain | Patch from `patches/go/` |
 | --- | --- | --- |
 | arm64 | [renkuos-golang](https://github.com/rainygirl/renkuos-golang) golang_bin revision 10, Go 1.27.4 | none (older trees: `go-haiku-arm64-startup.patch`) |
-| x86_64 | [korli/go](https://github.com/korli/go) `golang-1.27-haiku`, Go 1.27.4 | none |
-| 32-bit x86 | [renkuos-golang-x86](https://github.com/rainygirl/renkuos-golang-x86) revision 2, Go 1.26.5 | none (the fixes are in its `patches/`) |
+| x86_64 | [korli/go](https://github.com/korli/go) `golang-1.27-haiku`, Go 1.27.4 | `go-haiku-amd64-hosts.patch` |
+| 32-bit x86 | [renkuos-golang-x86](https://github.com/rainygirl/renkuos-golang-x86) revision 3, Go 1.26.5 | none (the fixes are in its `patches/`) |
+
+All three read Haiku's hosts file through `src/net/hook_haiku.go`;
+`build.sh` refuses a tree without it.
 
 ### arm64: renkuos-golang revision 10
 
@@ -47,12 +50,27 @@ The tree of golang_bin revision 10 has three fixes the tools need:
   copy) and the next `go build` compiles the changed packages. Revision 10
   does not need it.
 
+### x86_64: korli/go with the hosts file patch
+
+korli/go's `net` package reads `resolv.conf` from Haiku's network settings
+directory but still looks for `/etc/hosts`, which Haiku does not have, so
+`localhost` was sent to the DNS server and not found.
+`patches/go/go-haiku-amd64-hosts.patch` adds `src/net/hook_haiku.go`, the
+file of renkuos-golang revision 10, which points the resolver at
+`/boot/system/settings/network/hosts`. Copy the korli/go tree and
+`git apply` the patch there; the standard library is compiled from source
+into the build cache for every build, so the tree needs no rebuild. A
+program built with the patched copy resolves `localhost` to `127.0.0.1` and
+`::1` on the x86_64 nightly; the same program built with the unpatched tree
+fails with `lookup localhost on 10.0.2.3:53: no such host`.
+
 ### 32-bit x86: renkuos-golang-x86
 
 The 32-bit tools are built with the cross toolchain that renkuos-golang-x86's
 `build.sh` leaves in `.work/go` (`bin/go` there runs on the build machine and
 targets haiku/386). It is the same tree as the native `golang_x86` package:
 korli/go `golang-1.26-haiku` with one haiku/386 patch series on top.
+Revision 3 adds `go-haiku386-hosts.patch`, the same `net/hook_haiku.go`.
 
 That series now also has what this repository used to carry as
 `patches/go/go-haiku386-fixes.patch`, found while bringing up these tools on
@@ -228,11 +246,13 @@ portable code shares one listener between the old and the new configuration.
 
 `tools/caddy.conf` sets the default admin address to `127.0.0.1:2019`
 through `-ldflags` (`caddy.DefaultAdminListen`, meant for packagers): Go's
-resolver reads `/etc/hosts`, which Haiku does not have (its hosts file is
-`/boot/system/settings/network/hosts`), so `localhost` is looked up over DNS
-and fails. With the stock default Caddy did not start at all ("starting
-caddy administration endpoint: listen tcp: lookup localhost ... no such
-host").
+resolver read `/etc/hosts`, which Haiku does not have (its hosts file is
+`/boot/system/settings/network/hosts`), so `localhost` was looked up over
+DNS and failed. With the stock default Caddy did not start at all
+("starting caddy administration endpoint: listen tcp: lookup localhost ...
+no such host"). The toolchains of all three systems now read Haiku's hosts
+file and `admin localhost:2019` works; the default stays `127.0.0.1:2019`
+as released.
 
 ### fzf 0.75.0
 
@@ -297,13 +317,11 @@ Found while checking these:
 - **No `/etc/hosts` for Go programs.** Go's resolver reads `/etc/hosts`;
   Haiku keeps its hosts file in `/boot/system/settings/network/hosts`, so
   `localhost` is sent to the DNS server and is not found. Caddy works around
-  it (see above); lazygit's `--profile` cannot listen on `localhost:6060`
-  for the same reason. Fixed for arm64 in renkuos-golang revision 10
-  (`net/hook_haiku.go` points the resolver at Haiku's file); the x86_64
-  (korli/go) and 32-bit (renkuos-golang-x86) toolchains still need the
-  same one-line change. Until then a symlink
-  `/etc/hosts -> /boot/system/settings/network/hosts` fixes it for every Go
-  program there.
+  it (see above); lazygit's `--profile` could not listen on
+  `localhost:6060` for the same reason. Fixed for arm64 in renkuos-golang
+  revision 10 (`net/hook_haiku.go` points the resolver at Haiku's file), for
+  x86_64 with `patches/go/go-haiku-amd64-hosts.patch` and for 32-bit x86 in
+  renkuos-golang-x86 revision 3; see "x86 rebuild" below.
 - **Haiku's TCP ignores `SO_REUSEPORT` on listening sockets** (it only looks
   at `SO_REUSEADDR`, and only for sockets in TIME_WAIT); see Caddy above.
 - **arm64: ramfs hung** under restic: `forget --prune` on a repository on a
@@ -337,6 +355,35 @@ address and stops on SIGINT; `rclone copy` + `check` of a 5 MB file and a
 subdirectory (same md5); `rclone serve http` answers and stops on
 SIGTERM; Syncthing's GUI answers and Syncthing stops on SIGTERM; `gh
 --version`. All pass.
+
+### x86 rebuild
+
+All eight tools were rebuilt for x86_64 with korli/go plus
+`patches/go/go-haiku-amd64-hosts.patch` (all revision 2) and for 32-bit x86
+with renkuos-golang-x86 revision 3 (`rclone_x86`, `syncthing_x86` and
+`github_cli_x86` revision 3, the other five revision 2), so that `localhost`
+resolves there too. Checked on 2026-11-23 on the nightly hrev60450 x86_64
+and x86_gcc2h (TCG), work on a second, BFS formatted disk. The x86_64
+packages were installed with `pkgman install`; on x86_gcc2 the boot volume
+was too small for all eight, so they were unpacked with `package extract`
+and run from the second disk, and `fzf_x86` and `rclone_x86` were also
+installed with `pkgman install`. On both:
+
+- `version` of all eight;
+- `caddy run` of a Caddyfile with `admin localhost:2019`, sites on
+  `http://localhost:8080` and `:8081` and `reverse_proxy localhost:8080`:
+  both sites and the admin API answer, `caddy reload` and `caddy stop`
+  reach the admin endpoint by name; a Caddyfile without `admin` (the
+  packaged `127.0.0.1:2019`) also starts and stops;
+- `hugo server` with the default bind answers on `http://localhost:1313`
+  (curl, and `rclone cat` of `:http:` at that address) and stops on
+  SIGTERM;
+- `rclone copy` + `check` of a 3 MB file and a subdirectory, locally and
+  from `caddy file-server --browse` on `localhost:8090` through an `:http:`
+  remote;
+- `fzf --filter`; `restic init` and `backup`.
+
+All pass.
 
 Not checked: Syncthing between two machines, or with a 2.x peer; rclone
 against a remote that needs credentials; `gh` after logging in; restic with a
